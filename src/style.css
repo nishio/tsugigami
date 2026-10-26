@@ -60,9 +60,9 @@ button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accen
   border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink);
   -webkit-user-select: text; user-select: text;
 }
-.sw { width: 36px; min-width: 36px; padding: 0; }
+.sw { width: 32px; min-width: 32px; padding: 0; }
 .sw i { width: 20px; height: 20px; border-radius: 50%; background: var(--c); display: block; }
-.sw.marker i { border-radius: 4px; opacity: .75; }
+.sw.marker i { border-radius: 4px; }
 .sw[aria-pressed="true"] { background: transparent; }
 .sw[aria-pressed="true"] i { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--accent); }
 .wd { width: 36px; min-width: 36px; padding: 0; }

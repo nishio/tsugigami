@@ -8,7 +8,13 @@ export const DESK = '#e6e4de';
 export const PAPER = '#fdfcf8';
 const PAGE_EDGE = '#d3cfc4';
 const GRID_LINE = '#e3dfd3';
-const MARKER_ALPHA = 0.38;
+/**
+ * マーカーは不透明な色を「乗算」で重ねる(Notability と同じ見え方。白い紙の上ではその色、
+ * 別の色のマーカーや方眼の上では掛け合わせた濃さになる)。
+ * 半透明(α 0.38)で塗っていた頃の色は、白地で同じに見える不透明色に読み替える。
+ */
+const LEGACY_MARKER: Record<string, string> = { '#f4cf2a': '#fbedae', '#ff8fb8': '#ffd4e4', '#7cc8f2': '#cdeafa' };
+export const markerColor = (c: string): string => LEGACY_MARKER[c] ?? c;
 
 export interface View { x: number; y: number; s: number }
 
@@ -72,8 +78,8 @@ export function drawPenTail(ctx: CanvasRenderingContext2D, s: Ink, pred?: number
 export function drawMarker(ctx: CanvasRenderingContext2D, s: Ink): void {
   const P = s.pts, n = P.length / 3;
   ctx.save();
-  ctx.globalAlpha = MARKER_ALPHA;
-  ctx.strokeStyle = ctx.fillStyle = s.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = s.width;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.strokeStyle = ctx.fillStyle = markerColor(s.color); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = s.width;
   ctx.beginPath();
   if (n === 1) { ctx.arc(P[0], P[1], s.width / 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); return; }
   ctx.moveTo(P[0], P[1]);
@@ -84,10 +90,11 @@ export function drawMarker(ctx: CanvasRenderingContext2D, s: Ink): void {
 
 /**
  * 書き終わった線のパス。点の列は変わらないので、ストロークごとに 1 回だけ作って使い回す。
- * ペンは筆圧で太さが変わる輪郭を 1 つの多角形にして塗る(区間ごとに描くより描画命令が 1/数十 になる)。
- * 鋭く折り返す所で輪郭が裏返って欠けるのを、細い中心線を重ねて埋める。
+ * 太さが一定なので 1 本を 1 つのパスで描く。ペンは書いている最中と同じ「中点から中点への二次曲線」
+ * (+ 最後の中点からペン先までの直線)にして、確定した瞬間に線の形が変わらないようにする。
+ * (筆圧で太さを変えていた頃は、輪郭の多角形を塗っていた。git 履歴と wiki 参照)
  */
-interface StrokePaths { fill?: Path2D; line: Path2D; lw: number }
+interface StrokePaths { line: Path2D; lw: number }
 const pathCache = new WeakMap<Stroke, StrokePaths>();
 
 function strokePaths(s: Stroke): StrokePaths {
@@ -95,51 +102,16 @@ function strokePaths(s: Stroke): StrokePaths {
   if (c) return c;
   const P = s.pts, n = P.length / 3, line = new Path2D();
   line.moveTo(P[0], P[1]);
-  for (let j = 3; j < P.length; j += 3) line.lineTo(P[j], P[j + 1]);
-  if (s.kind === 'marker') {
-    if (n === 1) line.lineTo(P[0] + 0.01, P[1]);
-    c = { line, lw: s.width };
-  } else {
-    const fill = new Path2D();
-    let minR = Infinity;
-    if (n === 1) {
-      const r = penWidth(s.width, P[2]) / 2;
-      fill.arc(P[0], P[1], r, 0, Math.PI * 2);
-      minR = r;
-    } else {
-      const L: number[] = [], R: number[] = [];
-      let a0 = 0, a1 = 0;
-      for (let i = 0; i < n; i++) {
-        const p = Math.max(0, i - 1) * 3, q = Math.min(n - 1, i + 1) * 3;
-        let tx = P[q] - P[p], ty = P[q + 1] - P[p + 1];
-        const tl = Math.hypot(tx, ty) || 1;
-        tx /= tl; ty /= tl;
-        const r = penWidth(s.width, P[i * 3 + 2]) / 2, x = P[i * 3], y = P[i * 3 + 1];
-        if (r < minR) minR = r;
-        L.push(x - ty * r, y + tx * r);
-        R.push(x + ty * r, y - tx * r);
-        if (i === 0) a0 = Math.atan2(tx, -ty);
-        if (i === n - 1) a1 = Math.atan2(tx, -ty);
-      }
-      const side = (A: number[], rev: boolean) => {
-        const k = A.length / 2, at = (i: number) => (rev ? k - 1 - i : i) * 2;
-        for (let i = 1; i < k - 1; i++) {
-          const u = at(i), v = at(i + 1);
-          fill.quadraticCurveTo(A[u], A[u + 1], (A[u] + A[v]) / 2, (A[u + 1] + A[v + 1]) / 2);
-        }
-        const e = at(k - 1);
-        fill.lineTo(A[e], A[e + 1]);
-      };
-      const e = (n - 1) * 3;
-      fill.moveTo(L[0], L[1]);
-      side(L, false);
-      fill.arc(P[e], P[e + 1], penWidth(s.width, P[e + 2]) / 2, a1, a1 - Math.PI, true);
-      side(R, true);
-      fill.arc(P[0], P[1], penWidth(s.width, P[2]) / 2, a0 + Math.PI, a0, true);
-      fill.closePath();
+  if (n === 1) line.lineTo(P[0] + 0.01, P[1]);
+  else if (s.kind === 'marker') for (let j = 3; j < P.length; j += 3) line.lineTo(P[j], P[j + 1]);
+  else {
+    for (let i = 1; i < n; i++) {
+      const j = i * 3, mx = (P[j - 3] + P[j]) / 2, my = (P[j - 2] + P[j + 1]) / 2;
+      if (i === 1) line.lineTo(mx, my); else line.quadraticCurveTo(P[j - 3], P[j - 2], mx, my);
     }
-    c = { fill, line, lw: minR * 1.2 };
+    line.lineTo(P[(n - 1) * 3], P[(n - 1) * 3 + 1]);
   }
+  c = { line, lw: s.kind === 'marker' ? s.width : penWidth(s.width, 1) };
   pathCache.set(s, c);
   return c;
 }
@@ -147,17 +119,16 @@ function strokePaths(s: Stroke): StrokePaths {
 export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke): void {
   const c = strokePaths(s);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = ctx.fillStyle = s.color;
+  ctx.lineWidth = c.lw;
   if (s.kind === 'marker') {
     ctx.save();
-    ctx.globalAlpha = MARKER_ALPHA;
-    ctx.lineWidth = c.lw;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = markerColor(s.color);
     ctx.stroke(c.line);
     ctx.restore();
     return;
   }
-  ctx.fill(c.fill!);
-  ctx.lineWidth = c.lw;
+  ctx.strokeStyle = s.color;
   ctx.stroke(c.line);
 }
 
@@ -238,6 +209,15 @@ export class Renderer {
     // 書いている最中の線は低遅延モードで描く(対応していないブラウザでは無視される)
     this.lctx = this.live.getContext('2d', { desynchronized: true })!;
     this.wctx = this.wet.getContext('2d', { desynchronized: true })!;
+    this.liveBlend('pen');
+  }
+
+  /**
+   * ライブ層の重ね方。マーカーや選択中の線(マーカーを含みうる)は乗算で下の紙と掛け合わせ、
+   * 書き終わってタイルに焼いたときと同じ見え方にする。ペンは普通に重ねる(確定時と同じ色)。
+   */
+  liveBlend(tool: string): void {
+    this.live.style.mixBlendMode = tool === 'pen' ? 'normal' : 'multiply';
   }
 
   get lowLatency(): boolean {

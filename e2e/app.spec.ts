@@ -75,14 +75,25 @@ test('選択中に色を選ぶと線の色が変わる', async ({ page }) => {
   await page.click('[data-tool="lasso"]');
   await stroke(page, [[150, 250], [350, 250], [350, 380], [150, 380]]);
   await page.click('#swatches button[aria-label="赤"]');
-  expect((await strokesInfo(page))[0].color).toBe('#d0352b');
+  expect((await strokesInfo(page))[0].color).toBe('#da4733');
 });
 
 test('ペンの直後のタッチは手のひらとして無視し、指 1 本ではスクロールする', async ({ page }) => {
   const y0 = await page.evaluate(() => (window as any).tsugigami.r.view.y);
-  await stroke(page, line(100, 200, 300, 200));
-  await stroke(page, line(400, 600, 400, 300), 'touch', 21);
-  expect(await page.evaluate(() => (window as any).tsugigami.r.view.y)).toBe(y0);
+  // ペンとその直後の指を 1 回の evaluate で流す(負荷で間が 500ms を超えないように)
+  const after = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, r = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    const ev = (n: string, id: number, type: string, x: number, y: number, b: number) =>
+      st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: type, clientX: r.left + x, clientY: r.top + y, buttons: b, pressure: b && type === 'pen' ? 0.5 : 0 }));
+    ev('pointerdown', 7, 'pen', 100, 200, 1);
+    for (let x = 120; x <= 300; x += 20) ev('pointermove', 7, 'pen', x, 200, 1);
+    ev('pointerup', 7, 'pen', 300, 200, 0);
+    ev('pointerdown', 21, 'touch', 400, 600, 1);
+    for (let y = 575; y >= 300; y -= 25) ev('pointermove', 21, 'touch', 400, y, 1);
+    ev('pointerup', 21, 'touch', 400, 300, 0);
+    return T.r.view.y;
+  });
+  expect(after).toBe(y0);
   await page.waitForTimeout(600);
   // 指を離す直前の位置で見る(離した後は慣性で動き続ける)
   const moved = await page.evaluate(() => {
@@ -94,7 +105,8 @@ test('ペンの直後のタッチは手のひらとして無視し、指 1 本�
     ev('pointerup', 300, 0);
     return y;
   });
-  expect(moved).toBeCloseTo(y0 - 300, 0);
+  // 最初の 25px は動き出しの遊び(PAN_SLOP_PX)として捨てる
+  expect(moved).toBeCloseTo(y0 - 275, 0);
   expect(await count(page)).toBe(1);
 });
 
@@ -137,12 +149,29 @@ test('バックアップを書き出せる', async ({ page }) => {
 test('見た目', async ({ page }, info) => {
   await stroke(page, line(80, 120, 420, 140, 30));
   await stroke(page, [[100, 200], [140, 180], [180, 230], [220, 190], [260, 240], [300, 200]]);
+  // ペンの色と太さ
+  for (const [k, name] of ['赤', '青', '緑', '橙'].entries()) {
+    await page.click(`#swatches button[aria-label="${name}"]`);
+    await stroke(page, line(80 + k * 20, 300 + k * 30, 300 + k * 20, 260 + k * 30, 20));
+  }
+  await page.click('#swatches button[aria-label="黒"]');
+  for (const [k, name] of ['細', '中', '太'].entries()) {
+    await page.click(`#widths button[aria-label="${name}"]`);
+    await stroke(page, line(120, 440 + k * 20, 330, 420 + k * 20, 20));
+  }
+  // マーカーの色(既定は太)。赤い横線を上に重ねる
   await page.click('[data-tool="marker"]');
+  for (const [k, name] of ['青', '緑', '黄', '薄い灰', '濃い灰'].entries()) {
+    await page.click(`#swatches button[aria-label="${name}"]`);
+    await stroke(page, line(470 + k * 60, 170, 470 + k * 60, 260, 10));
+  }
+  await page.click('#swatches button[aria-label="赤"]');
+  await stroke(page, line(440, 200, 790, 215, 20));
   await stroke(page, line(80, 130, 300, 130));
   await page.click('[data-tool="pen"]');
   await page.click('#swatches button[aria-label="赤"]');
-  await stroke(page, line(500, 300, 700, 500));
+  await stroke(page, line(500, 400, 700, 600));
   await page.click('[data-tool="lasso"]');
-  await stroke(page, [[480, 280], [720, 280], [720, 520], [480, 520]]);
+  await stroke(page, [[480, 380], [720, 380], [720, 620], [480, 620]]);
   await page.screenshot({ path: `test-results/look-${info.project.name}.png` });
 });

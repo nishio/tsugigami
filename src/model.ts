@@ -72,8 +72,11 @@ export function pageIndexAt(note: Note, y: number): number {
   return Math.max(0, Math.min(note.pages.length - 1, i));
 }
 
-/** ペンの筆圧から描く太さ */
-export const penWidth = (width: number, p: number): number => width * (0.35 + 1.3 * Math.min(p, 1));
+/**
+ * ペンの描く太さ。筆圧は使わず一定(nishio の好み: issue #1「筆圧なし」)。
+ * 筆圧は点ごとに記録し続けているので、あとで太さに反映させたくなったらここだけ変えればよい。
+ */
+export const penWidth = (width: number, _p: number): number => width;
 
 /** ストロークの外接矩形に足す余白(太さの最大値の半分) */
 export const strokePad = (kind: StrokeKind, width: number): number => (kind === 'pen' ? penWidth(width, 1) : width) / 2;

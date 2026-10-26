@@ -152,3 +152,62 @@ test('2 本指タップで取り消す。直後にペンが触れたら手のひ
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(2);
 });
+
+test('手をついたときの小さな揺れでは紙が動かず、直後にペンが来たら動いた分を戻す', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  const r = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    const ev = (n: string, id: number, type: string, x: number, y: number, buttons: number) =>
+      st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: type, clientX: b.left + x, clientY: b.top + y, buttons, pressure: type === 'pen' ? 0.5 : 0 }));
+    const y0 = T.r.view.y;
+    // 手のひら: 数 px ふらつくだけ
+    ev('pointerdown', 31, 'touch', 500, 700, 1);
+    for (const d of [2, -3, 4, 1, -2]) ev('pointermove', 31, 'touch', 500 + d, 700 + d, 1);
+    const still = T.r.view.y;
+    // 手のひらがずれて紙が動いた直後にペンが着地
+    for (let i = 1; i <= 4; i++) ev('pointermove', 31, 'touch', 500, 700 - i * 15, 1);
+    const dragged = T.r.view.y;
+    ev('pointerdown', 32, 'pen', 300, 300, 1);
+    const reverted = T.r.view.y;
+    ev('pointermove', 32, 'pen', 360, 300, 1);
+    ev('pointerup', 32, 'pen', 360, 300, 0);
+    ev('pointerup', 31, 'touch', 500, 640, 0);
+    return { y0, still, dragged, reverted };
+  });
+  expect(r.still).toBe(r.y0);
+  expect(r.dragged).not.toBe(r.y0);
+  expect(r.reverted).toBe(r.y0);
+  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(1);
+});
+
+test('マーカーは乗算で重なる(白地ではその色、別の色との重なりは掛け合わせ)', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  await page.click('#paper'); // 方眼を消して無地で測る
+  await page.click('[data-tool="marker"]');
+  expect(await page.evaluate(() => (window as any).tsugigami.c.marker.width)).toBe(35);
+  const draw = (color: string, x0: number, y0: number, x1: number, y1: number) => page.evaluate(({ color, x0, y0, x1, y1 }) => {
+    const T = (window as any).tsugigami;
+    T.c.marker.color = color;
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect();
+    const ev = (n: string, x: number, y: number, buttons: number) =>
+      st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: 41, pointerType: 'pen', clientX: b.left + x, clientY: b.top + y, buttons, pressure: 0.5 }));
+    ev('pointerdown', x0, y0, 1);
+    for (let i = 1; i <= 10; i++) ev('pointermove', x0 + ((x1 - x0) * i) / 10, y0 + ((y1 - y0) * i) / 10, 1);
+    ev('pointerup', x1, y1, 0);
+  }, { color, x0, y0, x1, y1 });
+  await draw('#9ec2fa', 400, 300, 400, 600);
+  await draw('#edaea6', 250, 450, 550, 450);
+  await page.waitForTimeout(300);
+  const px = await page.evaluate(() => {
+    const T = (window as any).tsugigami, c = T.r.base as HTMLCanvasElement, d = T.r.dpr;
+    const at = (x: number, y: number) => Array.from(c.getContext('2d')!.getImageData(Math.round(x * d), Math.round(y * d), 1, 1).data.slice(0, 3));
+    return { blue: at(400, 350), red: at(300, 450), both: at(400, 450) };
+  });
+  const paper = [0xfd, 0xfc, 0xf8], mul = (a: number[], b: number[]) => a.map((v, i) => (v * b[i]) / 255);
+  const near = (got: number[], want: number[]) => got.forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThan(4));
+  near(px.blue, mul([0x9e, 0xc2, 0xfa], paper));
+  near(px.red, mul([0xed, 0xae, 0xa6], paper));
+  near(px.both, mul(mul([0x9e, 0xc2, 0xfa], [0xed, 0xae, 0xa6]), paper));
+});

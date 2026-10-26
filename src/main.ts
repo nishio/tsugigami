@@ -8,10 +8,13 @@ import { type Backup, Store } from './store';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 
-const PEN_COLORS: [string, string][] = [['#1d2230', '黒'], ['#d0352b', '赤'], ['#2457c5', '青']];
-const MARKER_COLORS: [string, string][] = [['#f4cf2a', '黄'], ['#ff8fb8', 'ピンク'], ['#7cc8f2', '水色']];
-const PEN_WIDTHS = [1.4, 2.2, 3.6];
-const MARKER_WIDTHS = [12, 18, 28];
+// 色と太さは Notability での nishio の設定に合わせた(issue #1 のスクリーンショットから採った値)
+const PEN_COLORS: [string, string][] = [['#000000', '黒'], ['#da4733', '赤'], ['#2f6df6', '青'], ['#77b856', '緑'], ['#eda139', '橙']];
+const MARKER_COLORS: [string, string][] = [
+  ['#edaea6', '赤'], ['#9ec2fa', '青'], ['#c3e1b5', '緑'], ['#f7d79d', '黄'], ['#d3d3d3', '薄い灰'], ['#949494', '濃い灰'],
+];
+const PEN_WIDTHS = [1, 2.2, 4.4];
+const MARKER_WIDTHS = [2.2, 11, 35];
 const BACKUP_WARN_DAYS = 7;
 
 interface SavedView { cx: number; top: number; s: number }

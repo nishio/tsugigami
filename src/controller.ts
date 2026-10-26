@@ -5,7 +5,7 @@ import {
   transformStroke, translate, unionAll,
 } from './geom';
 import { type Box, type Stroke, type StrokeKind, newId, noteBounds, strokePad } from './model';
-import { type Ink, type Renderer, drawMarker, drawPenSegments, drawPenTail, drawStroke, paintOrder } from './render';
+import { type Ink, type Renderer, type View, drawMarker, drawPenSegments, drawPenTail, drawStroke, paintOrder } from './render';
 
 export type Tool = 'pen' | 'marker' | 'eraser' | 'lasso';
 export interface Brush { color: string; width: number }
@@ -20,6 +20,13 @@ const TAP_MOVE_PX = 16;
 /** 2 本指タップの取り消しを実行するまでの猶予。その間にペンが触れたら手のひらだったとみなして取りやめる */
 const TAP_DELAY_MS = 250;
 const MIN_SCALE = 0.25, MAX_SCALE = 8;
+/**
+ * 指がこれだけ動くまで紙を動かさない。手をついたとき、接地面の重心がふらついて紙がガクガク動くのを防ぐ
+ * (実機で「手をついた時に一瞬ガクガクっとなった、まれ」)。
+ */
+const PAN_SLOP_PX = 10;
+/** 指が触れてからこの時間内にペンが来たら、その指は手のひらだったとみなし、動かした紙を元の位置に戻す */
+const PALM_REVERT_MS = 400;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
@@ -30,14 +37,18 @@ type Active = { id: number; doc: Doc } & (
 
 interface Selection { strokes: Stroke[]; box: Box; m: Mat }
 interface GState { c: [number, number]; d: number; n: number }
-interface Gesture { t0: number; moved: number; max: number; prev: GState; vx: number; vy: number; lastT: number }
+interface Gesture {
+  t0: number; moved: number; max: number; prev: GState; vx: number; vy: number; lastT: number; v0: View;
+  /** まだ紙を動かしていない間の、指の出発点(動き出したら null) */
+  rest: GState | null;
+}
 
 const pres = (e: PointerEvent) => (e.pointerType === 'pen' ? Math.max(0.05, e.pressure || 0) : 0.5);
 
 export class Controller {
   tool: Tool = 'pen';
-  pen: Brush = { color: '#1d2230', width: 2.2 };
-  marker: Brush = { color: '#f4cf2a', width: 18 };
+  pen: Brush = { color: '#000000', width: 2.2 };
+  marker: Brush = { color: '#f7d79d', width: 35 };
   sel: Selection | null = null;
   clipboard: Stroke[] = [];
   /** 取り消し可否や選択の有無など、UI に反映すべき状態が変わった */
@@ -96,6 +107,7 @@ export class Controller {
   setTool(t: Tool): void {
     if (t !== 'lasso') this.clearSelection();
     this.tool = t;
+    this.r.liveBlend(t);
     this.onState();
   }
 
@@ -309,7 +321,7 @@ export class Controller {
   private onDown(e: PointerEvent): void {
     const t = e.pointerType, now = performance.now();
     this.stopMomentum();
-    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(); clearTimeout(this.tapTimer); }
+    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(now - this.gesture.t0 < PALM_REVERT_MS); clearTimeout(this.tapTimer); }
     // 離したイベントを取りこぼして書きかけが残っていたら、ここで確定させる(固まらないように)
     if (t !== 'touch' && this.active && this.active.id !== e.pointerId) this.finish(this.active);
     if (t === 'touch') {
@@ -503,16 +515,25 @@ export class Controller {
   }
 
   private gestureReset(): void {
-    if (!this.gesture) this.gesture = { t0: performance.now(), moved: 0, max: 0, prev: this.gState(), vx: 0, vy: 0, lastT: performance.now() };
+    if (!this.gesture) this.gesture = { t0: performance.now(), moved: 0, max: 0, prev: this.gState(), vx: 0, vy: 0, lastT: performance.now(), v0: { ...this.r.view }, rest: this.gState() };
     this.gesture.max = Math.max(this.gesture.max, this.touches.size);
     this.gesture.prev = this.gState();
+    if (this.gesture.rest) this.gesture.rest = this.gesture.prev;
   }
 
   private gestureMove(): void {
     const g = this.gesture;
     if (!g) return;
     const n = this.gState(), p = g.prev, v = this.r.view, now = performance.now();
-    if (n.n !== p.n) { g.prev = n; return; }
+    if (n.n !== p.n) { g.prev = n; if (g.rest) g.rest = n; return; }
+    if (g.rest) {
+      // 出発点から PAN_SLOP_PX 離れるまでは揺れとみなして捨てる。動き出すときは今の位置を基準にする(溜まった分だけ跳ばない)
+      const o = g.rest, far = Math.hypot(n.c[0] - o.c[0], n.c[1] - o.c[1]) + Math.abs(n.d - o.d);
+      g.moved = Math.max(g.moved, far);
+      g.prev = n; g.lastT = now;
+      if (far >= PAN_SLOP_PX) g.rest = null;
+      return;
+    }
     const dx = n.c[0] - p.c[0], dy = n.c[1] - p.c[1];
     v.x += dx; v.y += dy;
     if (n.n === 2 && p.d > 0) {
@@ -543,9 +564,10 @@ export class Controller {
     else this.r.settle();
   }
 
-  private cancelGesture(): void {
+  private cancelGesture(revert = false): void {
     for (const id of this.touches.keys()) this.ignored.add(id);
     this.touches.clear();
+    if (revert && this.gesture) Object.assign(this.r.view, this.gesture.v0);
     this.gesture = null;
     this.r.settle();
   }
