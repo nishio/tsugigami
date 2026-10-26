@@ -2,7 +2,7 @@
 import './style.css';
 import { Controller } from './controller';
 import { Doc, type DocSink } from './doc';
-import { type Note, PAGE_W, newNote, pageRect } from './model';
+import { type Note, PAGE_W, newNote, noteBounds, pageIndexAt, pageRect } from './model';
 import { Renderer } from './render';
 import { type Backup, Store } from './store';
 
@@ -216,21 +216,58 @@ async function main(): Promise<void> {
         const w = doc.note.pages[i].w;
         const plus = pageButton(n++);
         plus.textContent = '+'; plus.setAttribute('aria-label', `${i + 1} ページ目を右に広げる`);
-        plus.style.transform = `translate(${x1 + 4}px, ${cy - 56}px)`;
+        plus.style.transform = `translate(${x1 + 2}px, ${cy - 56}px)`;
         plus.hidden = false;
         plus.onclick = () => resizePage(i, 1);
         // 継ぎ足した一番右の紙が白紙なら、取り除ける
         if (w > 1 && !doc.query([PAGE_W * (w - 1), pr[1], pr[2], pr[3]]).length) {
           const minus = pageButton(n++);
           minus.textContent = '−'; minus.setAttribute('aria-label', `${i + 1} ページ目の右の紙を外す`);
-          minus.style.transform = `translate(${x1 + 4}px, ${cy + 4}px)`;
+          minus.style.transform = `translate(${x1 + 2}px, ${cy + 4}px)`;
           minus.hidden = false;
           minus.onclick = () => resizePage(i, -1);
         }
       }
     }
     for (let k = n; k < pool.length; k++) pool[k].hidden = true;
+    placeScroller();
   };
+
+  // ---- 右端のスクロールつまみ(長いノートを素早く行き来する) ----
+  const scroller = $('#scroller'), pageLabel = $('#pageLabel');
+  const noteSpan = () => {
+    const nb = noteBounds(doc!.note), v = r.view;
+    return { top: nb[1] * v.s, h: (nb[3] - nb[1]) * v.s + 80 };
+  };
+  function placeScroller(): void {
+    if (!doc) { scroller.hidden = true; return; }
+    const { h } = noteSpan(), v = r.view;
+    if (h <= r.H * 1.2) { scroller.hidden = true; return; }
+    scroller.hidden = false;
+    const th = Math.max(44, (r.H * r.H) / h), pos = Math.min(1, Math.max(0, (40 - v.y) / (h - r.H)));
+    scroller.style.height = th + 'px';
+    scroller.style.top = (pos * (r.H - th)) + 'px';
+  }
+  let drag: { id: number; y0: number; v0: number } | null = null;
+  scroller.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    try { scroller.setPointerCapture(e.pointerId); } catch { /* 合成イベントなど */ }
+    drag = { id: e.pointerId, y0: e.clientY, v0: r.view.y };
+    scroller.classList.add('active');
+  });
+  scroller.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id || !doc) return;
+    const { h } = noteSpan(), th = Math.max(44, (r.H * r.H) / h);
+    r.view.y = drag.v0 - ((e.clientY - drag.y0) * (h - r.H)) / (r.H - th);
+    r.clampView();
+    r.request();
+    const [, y] = r.toWorld(0, r.H / 2);
+    pageLabel.textContent = `${pageIndexAt(doc.note, y) + 1} / ${doc.note.pages.length} ページ`;
+    pageLabel.hidden = false;
+  });
+  const endDrag = () => { drag = null; scroller.classList.remove('active'); pageLabel.hidden = true; r.settle(); };
+  scroller.addEventListener('pointerup', endDrag);
+  scroller.addEventListener('pointercancel', endDrag);
 
   // ---- ノート一覧 ----
   const drawer = $('#drawer'), scrim = $('#scrim');

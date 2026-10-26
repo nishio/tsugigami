@@ -73,3 +73,44 @@ test('画面を回転すると、幅に合わせて紙を表示し直す', async
   const fits = await page.evaluate(() => { const { r } = (window as any).tsugigami; return Math.abs(r.view.x - (r.W - 794 * r.view.s) / 2) < 2; });
   expect(fits).toBe(true);
 });
+
+test('ステージの外で離しても、書きかけのまま固まらない', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
+    const o = (x: number, y: number, b: number) => ({ bubbles: true, pointerId: 9, pointerType: 'pen', clientX: r.left + x, clientY: r.top + y, pressure: 0.5, buttons: b });
+    st.dispatchEvent(new PointerEvent('pointerdown', o(100, 100, 1)));
+    st.dispatchEvent(new PointerEvent('pointermove', o(200, 150, 1)));
+    document.querySelector('#bar')!.dispatchEvent(new PointerEvent('pointerup', o(200, -20, 0)));
+  });
+  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(1);
+  expect(await page.evaluate(() => (window as any).tsugigami.c.busy)).toBe(false);
+});
+
+test('右端のつまみで長いノートを移動でき、ページ番号が出る', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  await page.evaluate(() => {
+    const { doc } = (window as any).tsugigami;
+    const list = [];
+    for (let pg = 0; pg < 8; pg++) {
+      const y = pg * 1139 + 100, P = Float32Array.from([100, y, 0.5, 300, y, 0.5]);
+      list.push({ id: crypto.randomUUID(), noteId: doc.note.id, kind: 'pen', color: '#000', width: 2, pts: P, b: [98, y - 3, 302, y + 3], z: doc.nextZ() });
+    }
+    doc.exec({ t: 'add', s: list });
+    (window as any).tsugigami.r.request();
+  });
+  const thumb = page.locator('#scroller');
+  await expect(thumb).toBeVisible();
+  const box = (await thumb.boundingBox())!;
+  const y0 = await page.evaluate(() => (window as any).tsugigami.r.view.y);
+  await page.evaluate(({ x, y }) => {
+    const el = document.querySelector('#scroller')!;
+    const o = (yy: number, b: number) => ({ bubbles: true, pointerId: 31, pointerType: 'touch', clientX: x, clientY: yy, buttons: b });
+    el.dispatchEvent(new PointerEvent('pointerdown', o(y, 1)));
+    el.dispatchEvent(new PointerEvent('pointermove', o(y + 400, 1)));
+  }, { x: box.x + box.width / 2, y: box.y + 10 });
+  await expect(page.locator('#pageLabel')).toContainText('/ 9 ページ');
+  expect(await page.evaluate(() => (window as any).tsugigami.r.view.y)).toBeLessThan(y0 - 2000);
+});

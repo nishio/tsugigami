@@ -81,9 +81,22 @@ button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accen
   pointer-events: none; overflow: hidden; z-index: 5;
 }
 .page-btn {
-  position: absolute; pointer-events: auto; width: 26px; min-width: 26px; height: 52px; padding: 0;
+  position: absolute; pointer-events: auto; width: 24px; min-width: 24px; height: 52px; padding: 0;
   border-radius: 8px; background: rgba(255, 255, 255, .85); border: 1px solid var(--line); color: var(--muted);
   font-size: 18px; line-height: 1;
+}
+
+#scroller {
+  position: absolute; right: env(safe-area-inset-right, 0px); width: 12px; min-height: 44px;
+  pointer-events: auto; touch-action: none; display: flex; justify-content: center;
+}
+#scroller::before {
+  content: ""; width: 5px; height: 100%; border-radius: 3px; background: rgba(40, 44, 52, .28); transition: background .15s;
+}
+#scroller.active::before { background: rgba(40, 44, 52, .55); width: 7px; }
+#pageLabel {
+  position: absolute; right: 30px; top: 50%; transform: translateY(-50%); white-space: nowrap;
+  padding: 4px 10px; border-radius: 8px; background: #2b2f38; color: #fff; font-size: 13px; font-variant-numeric: tabular-nums;
 }
 
 #selMenu {

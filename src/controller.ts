@@ -60,9 +60,10 @@ export class Controller {
   constructor(private stage: HTMLElement, private r: Renderer) {
     r.onOverlay = () => this.overlay();
     stage.addEventListener('pointerdown', e => this.onDown(e));
-    stage.addEventListener('pointermove', e => this.onMove(e));
-    stage.addEventListener('pointerup', e => this.onUp(e));
-    stage.addEventListener('pointercancel', e => this.onUp(e));
+    // move / up は window で受ける。キャプチャが効かずにステージの外で離されても、書きかけのまま固まらないように
+    window.addEventListener('pointermove', e => this.onMove(e));
+    window.addEventListener('pointerup', e => this.onUp(e));
+    window.addEventListener('pointercancel', e => this.onUp(e));
     stage.addEventListener('pointerleave', e => { if (!this.active && e.pointerType !== 'touch') { this.hover = null; this.renderWet(); } });
     stage.addEventListener('wheel', e => this.onWheel(e), { passive: false });
     // iOS の長押しメニュー・ルーペ・ページズームを止める(Pointer Events は止まらない)
@@ -346,7 +347,7 @@ export class Controller {
     if (this.touches.has(e.pointerId)) { this.touches.set(e.pointerId, this.pt(e)); this.gestureMove(); return; }
     const a = this.active;
     if (!a || e.pointerId !== a.id) {
-      if (t !== 'touch' && e.buttons === 0) {
+      if (t !== 'touch' && e.buttons === 0 && e.target instanceof Node && this.stage.contains(e.target)) {
         if (t === 'pen') this.stats.hover = true;
         this.hover = this.pt(e);
         this.renderWet();
