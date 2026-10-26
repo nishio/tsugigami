@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>tsugigami</title>
+  <meta name="theme-color" content="#e6e4de">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="tsugigami">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" href="./icons/icon-192.png">
+</head>
+<body>
+  <header id="bar">
+    <div class="cluster">
+      <button type="button" id="menuBtn" class="icon" aria-label="ノート一覧">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="badge" hidden></span>
+      </button>
+      <button type="button" id="title" class="title"></button>
+      <input id="titleInput" class="title-input" hidden maxlength="80" aria-label="ノートの名前">
+    </div>
+
+    <div class="cluster tools" role="group" aria-label="道具">
+      <button type="button" class="icon" data-tool="pen" aria-label="ペン">
+        <svg viewBox="0 0 24 24"><path d="M4.5 19.5l1.2-4.3L16.2 4.7a1.6 1.6 0 012.3 0l.8.8a1.6 1.6 0 010 2.3L8.8 18.3z"/></svg>
+      </button>
+      <button type="button" class="icon" data-tool="marker" aria-label="マーカー">
+        <svg viewBox="0 0 24 24"><path d="M6 20h12"/><path d="M7.5 16.5l2-6 6-6 4 4-6 6z" /><path d="M9.5 10.5l4 4"/></svg>
+      </button>
+      <button type="button" class="icon" data-tool="eraser" aria-label="消しゴム">
+        <svg viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M4.6 14.6l9.2-9.2a1.4 1.4 0 012 0l3.8 3.8a1.4 1.4 0 010 2l-8.2 8.2H8.8l-4.2-4.2a1.4 1.4 0 010-2z"/><path d="M9.5 9.7l5.8 5.8"/></svg>
+      </button>
+      <button type="button" class="icon" data-tool="lasso" aria-label="投げ縄">
+        <svg viewBox="0 0 24 24"><path stroke-dasharray="2.6 2.4" d="M12 4.5c4.7 0 8 2.3 8 5.2s-3.3 5.2-8 5.2-8-2.3-8-5.2 3.3-5.2 8-5.2z"/><path d="M7.2 13.8c-1.3 1.7-.8 4.3 1.6 5.7"/></svg>
+      </button>
+    </div>
+
+    <div class="cluster" id="swatches" role="group" aria-label="色"></div>
+    <div class="cluster" id="widths" role="group" aria-label="太さ"></div>
+
+    <div class="cluster">
+      <button type="button" class="icon" id="undo" aria-label="取り消し">
+        <svg viewBox="0 0 24 24"><path d="M9 14L4.5 9.5 9 5"/><path d="M4.5 9.5H14a5.5 5.5 0 010 11h-3"/></svg>
+      </button>
+      <button type="button" class="icon" id="redo" aria-label="やり直し">
+        <svg viewBox="0 0 24 24"><path d="M15 14l4.5-4.5L15 5"/><path d="M19.5 9.5H10a5.5 5.5 0 000 11h3"/></svg>
+      </button>
+      <button type="button" class="icon" id="paste" aria-label="貼り付け" hidden>
+        <svg viewBox="0 0 24 24"><path d="M9 4.5h6v3H9z"/><path d="M15 6h3v14H6V6h3"/></svg>
+      </button>
+      <button type="button" class="icon" id="paper" aria-label="方眼">
+        <svg viewBox="0 0 24 24"><path d="M4.5 4.5h15v15h-15zM4.5 9.5h15M4.5 14.5h15M9.5 4.5v15M14.5 4.5v15"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="stage"></main>
+  <div id="pageButtons"></div>
+
+  <div id="selMenu" role="toolbar" aria-label="選択した線" hidden>
+    <button type="button" data-act="copy">コピー</button>
+    <button type="button" data-act="cut">切り取り</button>
+    <button type="button" data-act="duplicate">複製</button>
+    <button type="button" data-act="delete">削除</button>
+  </div>
+
+  <div id="scrim" hidden></div>
+  <aside id="drawer" aria-label="ノート一覧" hidden>
+    <div class="drawer-head">
+      <h2>ノート</h2>
+      <button type="button" id="newNote" class="primary">新しいノート</button>
+    </div>
+    <ul id="noteList" class="note-list"></ul>
+
+    <details id="trash">
+      <summary>ゴミ箱 <span id="trashCount"></span></summary>
+      <ul id="trashList" class="note-list"></ul>
+    </details>
+
+    <section class="block">
+      <h3>バックアップ</h3>
+      <p id="backupInfo" class="muted"></p>
+      <div class="row">
+        <button type="button" id="exportBtn">書き出す</button>
+        <label class="button" for="importFile">読み込む</label>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
+      <p class="muted small">ノートはこの iPad のブラウザの中にだけ保存されています。ときどき書き出して、ファイル アプリなどに保管してください。</p>
+    </section>
+
+    <section class="block">
+      <h3>保存の状態</h3>
+      <p id="storageInfo" class="muted"></p>
+    </section>
+
+    <details class="block">
+      <summary>書き味の計測</summary>
+      <dl id="stats" class="stats"></dl>
+    </details>
+
+    <p class="muted small" id="version"></p>
+  </aside>
+
+  <div id="toast" role="status" hidden></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

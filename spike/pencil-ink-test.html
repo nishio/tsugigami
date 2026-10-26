@@ -1,0 +1,560 @@
+<title>Pencil 書き味テスト</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: 全面に方眼の紙キャンバス。上に浮かぶ道具バー、右下に計測シート */
+:root {
+  --paper: #f7f6f1; --grid: #cfccbf; --ink: #20242c; --muted: #696c72;
+  --chrome: rgba(255, 255, 252, .93); --line: #dcd9ce;
+  --accent: #2d55c8; --accent-soft: #e2e8f8; --ok: #2c7549; --no: #a6472a;
+  --pen0: #1f232b; --pen1: #2550c4; --pen2: #c8372d; --hint: #9a9789;
+  --ui: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1c1e22; --grid: #3a3d44; --ink: #e8e6df; --muted: #9b9da4;
+    --chrome: rgba(38, 40, 45, .93); --line: #3d4048;
+    --accent: #93abff; --accent-soft: #2a3252; --ok: #7ccb9c; --no: #ec9479;
+    --pen0: #ecebe5; --pen1: #82a0ff; --pen2: #ff7d6e; --hint: #62656d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1c1e22; --grid: #3a3d44; --ink: #e8e6df; --muted: #9b9da4;
+  --chrome: rgba(38, 40, 45, .93); --line: #3d4048;
+  --accent: #93abff; --accent-soft: #2a3252; --ok: #7ccb9c; --no: #ec9479;
+  --pen0: #ecebe5; --pen1: #82a0ff; --pen2: #ff7d6e; --hint: #62656d;
+  color-scheme: dark;
+}
+html, body { height: 100%; overscroll-behavior: none; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--ui);
+  overflow: hidden; -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#stage { position: fixed; inset: 0; touch-action: none; }
+.layer { position: absolute; left: 0; top: 0; }
+#hint {
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  color: var(--hint); text-align: center; font-size: 15px; line-height: 2; padding: 0 24px;
+}
+#hint p { margin: 0; }
+#hint strong { display: block; font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+
+#bar {
+  position: fixed; z-index: 5; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%;
+  transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 4px; padding: 5px; width: max-content;
+  max-width: calc(100vw - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  background: var(--chrome); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .08);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); touch-action: manipulation;
+}
+.group { display: flex; gap: 2px; padding-right: 4px; border-right: 1px solid var(--line); }
+.group:last-child { border-right: 0; padding-right: 0; }
+button {
+  font: inherit; font-size: 14px; color: var(--ink); background: transparent; border: 0;
+  border-radius: 9px; min-width: 40px; height: 40px; padding: 0 10px; cursor: pointer;
+  display: inline-grid; place-items: center;
+}
+button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button:disabled { opacity: .35; cursor: default; }
+.sw { width: 22px; height: 22px; border-radius: 50%; background: var(--c); display: block; }
+button[aria-pressed="true"] .sw { box-shadow: 0 0 0 2px var(--chrome), 0 0 0 4px var(--accent); }
+.wd { display: block; border-radius: 50%; background: currentColor; }
+
+#panel {
+  position: fixed; z-index: 5; right: calc(10px + env(safe-area-inset-right, 0px));
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: 300px;
+  max-width: calc(100vw - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  max-height: 68vh; overflow: auto; padding: 14px 16px; font-size: 13px;
+  background: var(--chrome); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .08); touch-action: pan-y;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+#panel h2 { font-size: 11px; letter-spacing: .1em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+#panel dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0 0 14px; }
+#panel dt { color: var(--muted); }
+#panel dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); }
+.chip[data-s="yes"] { color: var(--ok); border-color: currentColor; }
+.chip[data-s="no"] { color: var(--no); border-color: currentColor; }
+.opt { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.opt input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+.opt small { color: var(--muted); }
+.note { color: var(--muted); font-size: 12px; line-height: 1.7; margin: 10px 0 0; }
+@media (max-width: 520px) { #panel { width: auto; left: calc(10px + env(safe-area-inset-left, 0px)); max-height: 42vh; } }
+</style>
+
+<div id="stage">
+  <div id="hint"><p><strong>Apple Pencil で書いてみてください</strong>指 1 本でスクロール、2 本でズーム<br>2 本指タップで取り消し、3 本指タップでやり直し</p></div>
+</div>
+
+<header id="bar">
+  <div class="group" role="group" aria-label="道具">
+    <button type="button" id="t-pen" data-tool="pen">ペン</button>
+    <button type="button" id="t-eraser" data-tool="eraser">消しゴム</button>
+  </div>
+  <div class="group" role="group" aria-label="色">
+    <button type="button" id="c-0" data-color="0" aria-label="黒"><span class="sw" style="--c: var(--pen0)"></span></button>
+    <button type="button" id="c-1" data-color="1" aria-label="青"><span class="sw" style="--c: var(--pen1)"></span></button>
+    <button type="button" id="c-2" data-color="2" aria-label="赤"><span class="sw" style="--c: var(--pen2)"></span></button>
+  </div>
+  <div class="group" role="group" aria-label="太さ">
+    <button type="button" id="w-0" data-width="0" aria-label="細"><span class="wd" style="width:4px;height:4px"></span></button>
+    <button type="button" id="w-1" data-width="1" aria-label="中"><span class="wd" style="width:7px;height:7px"></span></button>
+    <button type="button" id="w-2" data-width="2" aria-label="太"><span class="wd" style="width:11px;height:11px"></span></button>
+  </div>
+  <div class="group" role="group" aria-label="編集">
+    <button type="button" id="undo">取り消し</button>
+    <button type="button" id="redo">やり直し</button>
+    <button type="button" id="clear">全消去</button>
+  </div>
+  <div class="group">
+    <button type="button" id="statsBtn">計測</button>
+  </div>
+</header>
+
+<aside id="panel" aria-label="計測">
+  <h2>直近のストローク</h2>
+  <dl>
+    <dt>入力の種類</dt><dd id="s-type">—</dd>
+    <dt>筆圧</dt><dd id="s-p">—</dd>
+    <dt>傾き X / Y</dt><dd id="s-tilt">—</dd>
+    <dt>高度角 / 方位角</dt><dd id="s-alt">—</dd>
+    <dt>move イベント</dt><dd id="s-ev">—</dd>
+    <dt>取得した点</dt><dd id="s-pt">—</dd>
+    <dt>JS に届くまで</dt><dd id="s-lag">—</dd>
+    <dt>画面の更新</dt><dd id="s-hz">計測中</dd>
+    <dt>画素比</dt><dd id="s-dpr">—</dd>
+    <dt>手のひらとして無視</dt><dd id="s-palm">0</dd>
+  </dl>
+  <h2>このブラウザの対応</h2>
+  <ul class="chips">
+    <li class="chip" id="k-coalesced">合体イベント</li>
+    <li class="chip" id="k-predicted">予測イベント</li>
+    <li class="chip" id="k-desync">低遅延キャンバス</li>
+    <li class="chip" id="k-hover">ホバー</li>
+  </ul>
+  <h2>切り替えて比べる</h2>
+  <label class="opt"><input type="checkbox" id="o-coalesced">合体イベントを使う <small>点を細かく取る</small></label>
+  <label class="opt"><input type="checkbox" id="o-predicted">予測描画 <small>ペン先の先読み</small></label>
+  <label class="opt"><input type="checkbox" id="o-desync">低遅延キャンバス <small>desynchronized</small></label>
+  <label class="opt"><input type="checkbox" id="o-pressure">筆圧で太さを変える</label>
+  <label class="opt"><input type="checkbox" id="o-finger">指でも描く</label>
+  <p class="note">設定を切り替えながら速く線を引き、ペン先と線の先端のすき間を見比べてください。「JS に届くまで」は入力が発生してからスクリプトが受け取るまでの時間で、実際に画面へ出るまでにはさらに描画の 1〜2 フレームがかかります。書いた内容はこの端末のブラウザにだけ保存されます。</p>
+</aside>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const stage = $('#stage'), hint = $('#hint'), panel = $('#panel');
+  const KEY = 'pencil-ink-test-v1';
+  const PALM_MS = 500, ERASE_R = 10;
+  const WIDTHS = [1.4, 2.4, 4.5];
+  const S = {
+    strokes: [], tool: 'pen', color: 0, width: WIDTHS[1],
+    view: { x: 0, y: 0, s: 1 },
+    opt: { coalesced: true, predicted: true, desync: true, pressure: true, finger: false },
+  };
+  const PE = window.PointerEvent ? PointerEvent.prototype : {};
+  const sup = { coalesced: 'getCoalescedEvents' in PE, predicted: 'getPredictedEvents' in PE, desync: false, hover: false };
+  const M = { type: '—', p: null, tx: 0, ty: 0, alt: null, az: null, evRate: null, ptRate: null, lag: null, hz: null, palm: 0 };
+  let undoStack = [], redoStack = [];
+  let ink, wet, ictx, wctx, dpr = 1, W = 0, H = 0, C = {};
+  let active = null, gesture = null, lastPen = -1e9, saveT = 0, rafId = 0;
+  const touches = new Map(), ignored = new Set();
+
+  // ---- 保存 ----
+  function bbox(P) {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+    for (let j = 0; j < P.length; j += 3) {
+      a = Math.min(a, P[j]); b = Math.min(b, P[j + 1]); c = Math.max(c, P[j]); d = Math.max(d, P[j + 1]);
+    }
+    return [a, b, c, d];
+  }
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!d) return;
+      if (d.o) Object.assign(S.opt, d.o);
+      if (d.v) S.view = d.v;
+      if (d.t) { S.color = d.t.c ?? S.color; S.width = d.t.w ?? S.width; }
+      if (Array.isArray(d.s)) S.strokes = d.s.map(st => (st.b = bbox(st.pts), st));
+    } catch (e) {}
+  }
+  function save() {
+    clearTimeout(saveT);
+    saveT = setTimeout(() => {
+      try {
+        localStorage.setItem(KEY, JSON.stringify({
+          o: S.opt, v: S.view, t: { c: S.color, w: S.width },
+          s: S.strokes.map(st => ({ c: st.c, w: st.w, pr: st.pr, pts: st.pts.map(n => Math.round(n * 100) / 100) })),
+        }));
+      } catch (e) {}
+    }, 400);
+  }
+
+  // ---- キャンバス ----
+  function readTokens() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ['paper', 'grid', 'pen0', 'pen1', 'pen2', 'hint']) C[k] = cs.getPropertyValue('--' + k).trim();
+  }
+  function makeCanvases() {
+    stage.querySelectorAll('canvas').forEach(c => c.remove());
+    ink = document.createElement('canvas'); wet = document.createElement('canvas');
+    ink.className = wet.className = 'layer';
+    stage.prepend(ink, wet);
+    ictx = ink.getContext('2d', { alpha: false, desynchronized: S.opt.desync });
+    wctx = wet.getContext('2d', { desynchronized: S.opt.desync });
+    const a = ictx.getContextAttributes ? ictx.getContextAttributes() : null;
+    sup.desync = S.opt.desync ? !!(a && a.desynchronized) : null;
+    resize();
+  }
+  function resize() {
+    if (!ink) return;
+    dpr = window.devicePixelRatio || 1;
+    W = stage.clientWidth; H = stage.clientHeight;
+    for (const c of [ink, wet]) {
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+      c.style.width = W + 'px'; c.style.height = H + 'px';
+    }
+    redraw();
+  }
+  const setWorld = ctx => { const v = S.view; ctx.setTransform(dpr * v.s, 0, 0, dpr * v.s, dpr * v.x, dpr * v.y); };
+  const toWorld = (sx, sy) => { const v = S.view; return [(sx - v.x) / v.s, (sy - v.y) / v.s]; };
+  const pt = e => [e.clientX, e.clientY];
+  const pres = e => e.pointerType === 'mouse' ? 0.5 : Math.max(0.05, e.pressure || 0);
+  const penW = (st, p) => st.pr ? st.w * (0.35 + 1.3 * Math.min(p, 1)) : st.w;
+  function style(ctx, st) {
+    ctx.strokeStyle = ctx.fillStyle = C['pen' + st.c];
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  }
+  function dot(ctx, st, i) {
+    const P = st.pts, j = i * 3;
+    ctx.beginPath(); ctx.arc(P[j], P[j + 1], penW(st, P[j + 2]) / 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // 点 i を加えたときの区間: 中点から中点への二次曲線
+  function seg(ctx, st, i) {
+    const P = st.pts, j = i * 3;
+    const x1 = P[j - 3], y1 = P[j - 2], x2 = P[j], y2 = P[j + 1];
+    ctx.lineWidth = penW(st, (P[j - 1] + P[j + 2]) / 2);
+    ctx.beginPath();
+    if (i === 1) { ctx.moveTo(x1, y1); ctx.lineTo((x1 + x2) / 2, (y1 + y2) / 2); }
+    else { ctx.moveTo((P[j - 6] + x1) / 2, (P[j - 5] + y1) / 2); ctx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2); }
+    ctx.stroke();
+  }
+  // 最後の中点からペン先まで(と予測点)
+  function tail(ctx, st, pred) {
+    const P = st.pts, n = P.length / 3, j = (n - 1) * 3;
+    if (n === 1 && !pred) { dot(ctx, st, 0); return; }
+    ctx.lineWidth = penW(st, P[j + 2]);
+    ctx.beginPath();
+    if (n === 1) ctx.moveTo(P[0], P[1]);
+    else ctx.moveTo((P[j - 3] + P[j]) / 2, (P[j - 2] + P[j + 1]) / 2);
+    ctx.lineTo(P[j], P[j + 1]);
+    if (pred) for (const q of pred) ctx.lineTo(q[0], q[1]);
+    ctx.stroke();
+  }
+  function drawStroke(ctx, st, open) {
+    style(ctx, st);
+    const n = st.pts.length / 3;
+    if (n === 1) { dot(ctx, st, 0); return; }
+    for (let i = 1; i < n; i++) seg(ctx, st, i);
+    if (!open) tail(ctx, st, null);
+  }
+  function drawGrid() {
+    const v = S.view;
+    let step = 24 * v.s;
+    while (step < 12) step *= 2;
+    const ox = ((v.x % step) + step) % step, oy = ((v.y % step) + step) % step;
+    ictx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ictx.fillStyle = C.grid;
+    for (let x = ox; x < W; x += step) for (let y = oy; y < H; y += step) ictx.fillRect(x - .6, y - .6, 1.2, 1.2);
+  }
+  function redraw() {
+    rafId = 0;
+    ictx.setTransform(1, 0, 0, 1, 0, 0);
+    ictx.fillStyle = C.paper; ictx.fillRect(0, 0, ink.width, ink.height);
+    drawGrid();
+    setWorld(ictx);
+    for (const st of S.strokes) drawStroke(ictx, st, false);
+    if (active && active.stroke) drawStroke(ictx, active.stroke, true);
+    hint.hidden = S.strokes.length > 0 || !!active;
+    syncButtons();
+  }
+  const scheduleRedraw = () => { if (!rafId) rafId = requestAnimationFrame(redraw); };
+  function clearWet() { wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.clearRect(0, 0, wet.width, wet.height); }
+  function renderWet(pred) {
+    const st = active.stroke;
+    clearWet(); setWorld(wctx); style(wctx, st); tail(wctx, st, pred);
+  }
+  function drawCursor(sx, sy) {
+    clearWet();
+    wctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const r = S.tool === 'eraser' ? ERASE_R : Math.max(1.5, S.width * S.view.s * .6);
+    wctx.strokeStyle = C.hint; wctx.lineWidth = 1;
+    wctx.beginPath(); wctx.arc(sx, sy, r, 0, Math.PI * 2); wctx.stroke();
+  }
+
+  // ---- 履歴 ----
+  function pushUndo(prev) { undoStack.push(prev); if (undoStack.length > 300) undoStack.shift(); redoStack = []; }
+  function undo() { if (!undoStack.length || active) return; redoStack.push(S.strokes); S.strokes = undoStack.pop(); redraw(); save(); }
+  function redo() { if (!redoStack.length || active) return; undoStack.push(S.strokes); S.strokes = redoStack.pop(); redraw(); save(); }
+
+  // ---- 消しゴム(線ごと消す) ----
+  function hits(P, x, y, m) {
+    const m2 = m * m;
+    if (P.length === 3) return (P[0] - x) ** 2 + (P[1] - y) ** 2 < m2;
+    for (let j = 3; j < P.length; j += 3) {
+      const ax = P[j - 3], ay = P[j - 2], dx = P[j] - ax, dy = P[j + 1] - ay, L = dx * dx + dy * dy;
+      let t = L ? ((x - ax) * dx + (y - ay) * dy) / L : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const ex = ax + t * dx - x, ey = ay + t * dy - y;
+      if (ex * ex + ey * ey < m2) return true;
+    }
+    return false;
+  }
+  function eraseAt(x, y) {
+    const r = ERASE_R / S.view.s;
+    const keep = S.strokes.filter(st => {
+      const b = st.b, m = r + st.w;
+      if (x < b[0] - m || x > b[2] + m || y < b[1] - m || y > b[3] + m) return true;
+      return !hits(st.pts, x, y, m);
+    });
+    if (keep.length !== S.strokes.length) { S.strokes = keep; active.changed = true; scheduleRedraw(); }
+  }
+
+  // ---- 描画の入力 ----
+  function capture(e) { try { stage.setPointerCapture(e.pointerId); } catch (_) {} }
+  function beginDraw(e) {
+    capture(e);
+    const [sx, sy] = pt(e), [x, y] = toWorld(sx, sy);
+    active = { id: e.pointerId, type: e.pointerType, t0: performance.now(), sp: [sx, sy], ev: 0, pt: 0, lag: 0, lagN: 0 };
+    hint.hidden = true;
+    if (S.tool === 'eraser') { active.before = S.strokes; drawCursor(sx, sy); eraseAt(x, y); return; }
+    active.stroke = { c: S.color, w: S.width, pr: S.opt.pressure && e.pointerType === 'pen', pts: [x, y, pres(e)] };
+    renderWet(null);
+  }
+  function cancelActive() { active = null; clearWet(); scheduleRedraw(); }
+  function addPoint(st, ev) {
+    const [x, y] = toWorld(...pt(ev)), P = st.pts, j = P.length - 3;
+    if (Math.abs(x - P[j]) + Math.abs(y - P[j + 1]) < .3 / S.view.s) return;
+    P.push(x, y, pres(ev));
+    seg(ictx, st, P.length / 3 - 1);
+  }
+
+  // ---- 指のジェスチャー ----
+  function gState() {
+    const a = [...touches.values()].slice(0, 2);
+    if (a.length === 1) return { c: a[0], d: 0, n: 1 };
+    return { c: [(a[0][0] + a[1][0]) / 2, (a[0][1] + a[1][1]) / 2], d: Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]), n: 2 };
+  }
+  function gestureReset() {
+    if (!gesture) gesture = { t0: performance.now(), moved: 0, max: 0 };
+    gesture.max = Math.max(gesture.max, touches.size);
+    gesture.prev = gState();
+  }
+  function gestureMove() {
+    const g = gState(), p = gesture.prev, v = S.view;
+    if (g.n !== p.n) { gesture.prev = g; return; }
+    const dx = g.c[0] - p.c[0], dy = g.c[1] - p.c[1];
+    v.x += dx; v.y += dy;
+    if (g.n === 2 && p.d > 0) {
+      const ns = Math.min(8, Math.max(.2, v.s * g.d / p.d)), f = ns / v.s;
+      v.x = g.c[0] - (g.c[0] - v.x) * f; v.y = g.c[1] - (g.c[1] - v.y) * f; v.s = ns;
+    }
+    gesture.moved += Math.abs(dx) + Math.abs(dy) + Math.abs(g.d - p.d);
+    gesture.prev = g;
+    scheduleRedraw();
+  }
+  function gestureLift() {
+    if (!gesture) return;
+    if (touches.size) { gesture.prev = gState(); return; }
+    const g = gesture; gesture = null;
+    if (performance.now() - g.t0 < 300 && g.moved < 16) {
+      if (g.max === 2) undo(); else if (g.max === 3) redo();
+    }
+    save();
+  }
+  function cancelGesture() {
+    for (const id of touches.keys()) ignored.add(id);
+    touches.clear(); gesture = null; save();
+  }
+
+  // ---- Pointer Events ----
+  function onDown(e) {
+    const t = e.pointerType, now = performance.now();
+    if (t === 'pen') {
+      lastPen = now;
+      if (gesture) cancelGesture();
+      if (active && active.type === 'touch') cancelActive();
+    }
+    if (t === 'touch') {
+      // ペンが接地中・ホバー中・直後のタッチは手のひらとみなす
+      if ((active && active.type === 'pen') || now - lastPen < PALM_MS) { ignored.add(e.pointerId); M.palm++; return; }
+      if (active && active.type === 'touch') {
+        if (now - active.t0 > 200) { ignored.add(e.pointerId); return; }
+        touches.set(active.id, active.sp); cancelActive();
+      } else if (S.opt.finger && touches.size === 0) { beginDraw(e); return; }
+      touches.set(e.pointerId, pt(e));
+      capture(e);
+      gestureReset();
+      return;
+    }
+    if (t === 'mouse' && e.button !== 0) return;
+    if (active) return;
+    beginDraw(e);
+  }
+  function onMove(e) {
+    const t = e.pointerType;
+    if (t === 'pen') lastPen = performance.now();
+    if (t !== 'touch') {
+      M.type = t; M.p = e.pressure; M.tx = e.tiltX; M.ty = e.tiltY;
+      M.alt = e.altitudeAngle ?? null; M.az = e.azimuthAngle ?? null;
+    }
+    if (touches.has(e.pointerId)) { touches.set(e.pointerId, pt(e)); gestureMove(); return; }
+    if (!active || e.pointerId !== active.id) {
+      if (t === 'pen' && e.buttons === 0) { sup.hover = true; drawCursor(...pt(e)); }
+      return;
+    }
+    const a = active, lag = performance.now() - e.timeStamp;
+    if (lag >= 0 && lag < 1000) { a.lag += lag; a.lagN++; }
+    const co = S.opt.coalesced && e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    const list = co && co.length ? co : [e];
+    a.ev++; a.pt += list.length;
+    a.sp = pt(e);
+    if (!a.stroke) {
+      drawCursor(...a.sp);
+      for (const ev of list) eraseAt(...toWorld(...pt(ev)));
+      return;
+    }
+    const st = a.stroke;
+    setWorld(ictx); style(ictx, st);
+    for (const ev of list) addPoint(st, ev);
+    let pred = null;
+    if (S.opt.predicted && e.getPredictedEvents) {
+      const pe = e.getPredictedEvents();
+      if (pe.length) pred = pe.map(ev => toWorld(...pt(ev)));
+    }
+    renderWet(pred);
+  }
+  function onUp(e) {
+    const id = e.pointerId;
+    if (e.pointerType === 'pen') lastPen = performance.now();
+    if (ignored.delete(id)) return;
+    if (touches.has(id)) { touches.delete(id); gestureLift(); return; }
+    if (!active || id !== active.id) return;
+    const a = active; active = null;
+    clearWet();
+    const dur = (performance.now() - a.t0) / 1000;
+    if (dur > .15 && a.ev) { M.evRate = a.ev / dur; M.ptRate = a.pt / dur; }
+    if (a.lagN) M.lag = a.lag / a.lagN;
+    if (!a.stroke) {
+      if (a.changed) { pushUndo(a.before); save(); }
+      syncButtons(); return;
+    }
+    const st = a.stroke;
+    setWorld(ictx); style(ictx, st); tail(ictx, st, null);
+    st.b = bbox(st.pts);
+    pushUndo(S.strokes);
+    S.strokes = S.strokes.concat([st]);
+    save(); syncButtons(); renderPanel();
+  }
+  stage.addEventListener('pointerdown', onDown);
+  stage.addEventListener('pointermove', onMove);
+  stage.addEventListener('pointerup', onUp);
+  stage.addEventListener('pointercancel', onUp);
+  stage.addEventListener('pointerleave', e => { if (!active && e.pointerType === 'pen') clearWet(); });
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    const v = S.view;
+    if (e.ctrlKey) {
+      const ns = Math.min(8, Math.max(.2, v.s * Math.exp(-e.deltaY * .01))), f = ns / v.s;
+      v.x = e.clientX - (e.clientX - v.x) * f; v.y = e.clientY - (e.clientY - v.y) * f; v.s = ns;
+    } else { v.x -= e.deltaX; v.y -= e.deltaY; }
+    scheduleRedraw(); save();
+  }, { passive: false });
+  // iOS の長押し選択・ルーペ・ページズームを止める
+  for (const n of ['touchstart', 'touchmove']) stage.addEventListener(n, e => e.preventDefault(), { passive: false });
+  for (const n of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(n, e => e.preventDefault());
+  stage.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  });
+
+  // ---- UI ----
+  function syncButtons() {
+    document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === S.tool));
+    document.querySelectorAll('[data-color]').forEach(b => b.setAttribute('aria-pressed', S.tool === 'pen' && +b.dataset.color === S.color));
+    document.querySelectorAll('[data-width]').forEach(b => b.setAttribute('aria-pressed', S.tool === 'pen' && WIDTHS[+b.dataset.width] === S.width));
+    $('#undo').disabled = !undoStack.length;
+    $('#redo').disabled = !redoStack.length;
+    $('#clear').disabled = !S.strokes.length;
+    $('#statsBtn').setAttribute('aria-pressed', !panel.hidden);
+  }
+  document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { S.tool = b.dataset.tool; syncButtons(); });
+  document.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { S.color = +b.dataset.color; S.tool = 'pen'; syncButtons(); save(); });
+  document.querySelectorAll('[data-width]').forEach(b => b.onclick = () => { S.width = WIDTHS[+b.dataset.width]; S.tool = 'pen'; syncButtons(); save(); });
+  $('#undo').onclick = undo;
+  $('#redo').onclick = redo;
+  $('#clear').onclick = () => { if (!S.strokes.length) return; pushUndo(S.strokes); S.strokes = []; redraw(); save(); };
+  $('#statsBtn').onclick = () => { panel.hidden = !panel.hidden; syncButtons(); if (!panel.hidden) { measureHz(); renderPanel(); } };
+  for (const k of Object.keys(S.opt)) {
+    const el = $('#o-' + k);
+    el.checked = S.opt[k];
+    el.onchange = () => { S.opt[k] = el.checked; if (k === 'desync') makeCanvases(); save(); renderPanel(); };
+  }
+
+  function chip(id, label, s) {
+    const el = $('#' + id);
+    el.dataset.s = s === true ? 'yes' : s === false ? 'no' : 'off';
+    el.textContent = label + (s === true ? ' ✓' : s === false ? ' ✗' : ' —');
+  }
+  const deg = r => Math.round(r * 180 / Math.PI);
+  function renderPanel() {
+    if (panel.hidden) return;
+    $('#s-type').textContent = M.type;
+    $('#s-p').textContent = M.p == null ? '—' : M.p.toFixed(2);
+    $('#s-tilt').textContent = M.type === '—' ? '—' : `${M.tx}° / ${M.ty}°`;
+    $('#s-alt').textContent = M.alt == null ? '—' : `${deg(M.alt)}° / ${deg(M.az)}°`;
+    $('#s-ev').textContent = M.evRate == null ? '—' : `${Math.round(M.evRate)} 回/秒`;
+    $('#s-pt').textContent = M.ptRate == null ? '—' : `${Math.round(M.ptRate)} 点/秒`;
+    $('#s-lag').textContent = M.lag == null ? '—' : `${M.lag.toFixed(1)} ms`;
+    $('#s-hz').textContent = M.hz == null ? '計測中' : `約 ${M.hz} Hz`;
+    $('#s-dpr').textContent = String(dpr);
+    $('#s-palm').textContent = String(M.palm);
+    chip('k-coalesced', '合体イベント', sup.coalesced);
+    chip('k-predicted', '予測イベント', sup.predicted);
+    chip('k-desync', '低遅延キャンバス', sup.desync);
+    chip('k-hover', 'ホバー', sup.hover || null);
+  }
+  function measureHz() {
+    let n = 0, t0 = 0;
+    const tick = t => {
+      if (!t0) t0 = t;
+      n++;
+      if (t - t0 < 1000) requestAnimationFrame(tick);
+      else { M.hz = Math.round((n - 1) * 1000 / (t - t0)); renderPanel(); }
+    };
+    requestAnimationFrame(tick);
+  }
+  setInterval(renderPanel, 300);
+
+  const retheme = () => { readTokens(); redraw(); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  load();
+  readTokens();
+  makeCanvases();
+  new ResizeObserver(resize).observe(stage);
+  for (const k of Object.keys(S.opt)) $('#o-' + k).checked = S.opt[k];
+  measureHz();
+  renderPanel();
+})();
+</script>

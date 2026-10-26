@@ -1,0 +1,22 @@
+{
+  "name": "tsugigami",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "iPad + Apple Pencil で使う、A4 を縦に継いでいく手書きノート (PWA)",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "icons": "node tools/make-icons.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "fake-indexeddb": "6.2.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "3.2.7"
+  }
+}
