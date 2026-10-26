@@ -19,3 +19,10 @@ updated: 2026-10-27
 - ペン・マーカー・線消しゴム・投げ縄と変形・貼り付け・方眼・ページの右への継ぎ足し・ノート一覧とゴミ箱・バックアップを実装。
 - 単体テスト 18 件、e2e 20 件(WebKit / Chromium)が通過。e2e で `hidden` 属性が効かない問題を発見して修正([finding](findings/hidden属性とdisplay指定.md))。
 - 判断 5 件、概念 4 件、finding 4 件、テーマ 2 件を記録。
+
+## [2026-10-27] develop | 公開、オフライン起動と長いノートの性能
+
+- GitHub(nishio/tsugigami、公開)に push し、GitHub Pages への自動公開が通った。
+- オフライン起動の e2e で Service Worker の罠を 2 つ発見(`addAll` の重複、`Vary` による照合外れ)して修正([finding](findings/ServiceWorkerのキャッシュ照合.md))。
+- 9,900 本の長いノートで計測し、ページ自動追加のたびの全体焼き直しを解消、書き終わった線を輪郭の `Path2D` キャッシュで描く方式に変更、先読みと書いている間の合成保留を追加([finding](findings/長いノートの描画性能_ヘッドレス計測.md))。
+- 慣性スクロールの速度に上限を設けた(イベント間隔が極端に短いと跳ねていた)。

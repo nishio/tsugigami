@@ -12,7 +12,8 @@ function serviceWorker(): Plugin {
     name: 'tsugigami-sw',
     apply: 'build',
     generateBundle(_, bundle) {
-      const files = ['./', 'index.html', ...PUBLIC_FILES, ...Object.keys(bundle)].filter(f => !f.endsWith('.map'));
+      // cache.addAll は同じ URL が 2 回あると全体が失敗する(index.html はバンドルにも入っている)
+      const files = [...new Set(['./', 'index.html', ...PUBLIC_FILES, ...Object.keys(bundle)])].filter(f => !f.endsWith('.map'));
       const version = createHash('sha256').update(files.sort().join('\n')).digest('hex').slice(0, 12);
       const source = `const CACHE = 'tsugigami-${version}';
 const FILES = ${JSON.stringify(files)};
@@ -28,10 +29,11 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
-    e.respondWith(caches.match('index.html', { cacheName: CACHE }).then(r => r || fetch(req)));
+    e.respondWith(caches.match('index.html', { cacheName: CACHE, ignoreVary: true }).then(r => r || fetch(req)));
     return;
   }
-  e.respondWith(caches.match(req).then(r => r || fetch(req)));
+  // Vary(Origin など)で外れないようにする。モジュールの script 要求には Origin が付く
+  e.respondWith(caches.match(req, { ignoreVary: true }).then(r => r || fetch(req)));
 });
 `;
       this.emitFile({ type: 'asset', fileName: 'sw.js', source });

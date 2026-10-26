@@ -324,6 +324,7 @@ export class Controller {
         const b = this.tool === 'pen' ? this.pen : this.marker;
         this.active = { k: 'draw', id: e.pointerId, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, drawn: 1 };
         this.pred = null;
+        this.r.hold(true);
         this.overlay();
         break;
       }
@@ -334,6 +335,7 @@ export class Controller {
         break;
       case 'lasso':
         this.active = { k: 'lasso', id: e.pointerId, poly: [x, y] };
+        this.r.hold(true);
         break;
     }
   }
@@ -413,6 +415,7 @@ export class Controller {
     if (!a || id !== a.id || !doc) return;
     this.active = null;
     this.pred = null;
+    this.r.hold(false);
     const st = this.strokeStat, dur = (performance.now() - st.t0) / 1000;
     if (dur > 0.15 && st.ev) { this.stats.evRate = st.ev / dur; this.stats.ptRate = st.pt / dur; }
     if (st.lagN) this.stats.lagMs = st.lag / st.lagN;
@@ -488,8 +491,9 @@ export class Controller {
       const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (v.s * n.d) / p.d)), f = ns / v.s;
       v.x = n.c[0] - (n.c[0] - v.x) * f; v.y = n.c[1] - (n.c[1] - v.y) * f; v.s = ns;
     }
-    const dt = Math.max(1, now - g.lastT);
-    g.vx = g.vx * 0.6 + (dx / dt) * 0.4; g.vy = g.vy * 0.6 + (dy / dt) * 0.4; g.lastT = now;
+    // 速度(px/ms)。イベントの間隔が極端に短いと跳ねるので、間隔に下限、速度に上限を付ける
+    const dt = Math.max(8, now - g.lastT), cap = (u: number) => Math.max(-4, Math.min(4, u));
+    g.vx = cap(g.vx * 0.6 + (dx / dt) * 0.4); g.vy = cap(g.vy * 0.6 + (dy / dt) * 0.4); g.lastT = now;
     g.moved += Math.abs(dx) + Math.abs(dy) + Math.abs(n.d - p.d);
     g.prev = n;
     this.r.clampView();

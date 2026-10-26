@@ -1,7 +1,7 @@
 // 開いているノート 1 冊ぶんのメモリ上の状態: ストローク、空間索引、取り消し履歴。
 // 変更はすべて Op を通し、適用と同時に保存先(sink)へ流す。
 import { overlaps } from './geom';
-import { type Box, type Note, type Page, type Stroke, pageTop } from './model';
+import { type Box, type Note, PAGE_H, PAGE_W, type Page, type Stroke, pageTop } from './model';
 
 export type Op =
   | { t: 'add'; s: Stroke[] }
@@ -92,7 +92,16 @@ export class Doc {
       case 'add': add(op.s); break;
       case 'del': rm(op.s); break;
       case 'swap': rm(op.before); add(op.after); break;
-      case 'pages': this.note.pages = op.after.map(p => ({ ...p })); this.sink.invalidate(null); break;
+      case 'pages': {
+        this.note.pages = op.after.map(p => ({ ...p }));
+        const n = Math.max(op.before.length, op.after.length);
+        for (let i = 0; i < n; i++) {
+          if (op.before[i]?.w === op.after[i]?.w) continue;
+          const w = Math.max(op.before[i]?.w ?? 0, op.after[i]?.w ?? 0);
+          this.sink.invalidate([0, pageTop(i), PAGE_W * w, pageTop(i) + PAGE_H]);
+        }
+        break;
+      }
     }
     // 削除と追加で同じ id が出る(swap)ときは追加を優先する
     const putIds = new Set(put.map(s => s.id));
@@ -106,9 +115,9 @@ export class Doc {
   private ensureTrailingPage(): void {
     let bottom = -Infinity;
     for (const s of this.strokes.values()) if (s.b[3] > bottom) bottom = s.b[3];
-    let grew = false;
-    while (bottom > pageTop(this.note.pages.length - 1)) { this.note.pages.push({ w: 1 }); grew = true; }
-    if (grew) this.sink.invalidate(null);
+    const from = this.note.pages.length;
+    while (bottom > pageTop(this.note.pages.length - 1)) this.note.pages.push({ w: 1 });
+    if (this.note.pages.length > from) this.sink.invalidate([0, pageTop(from) - PAGE_H, PAGE_W, pageTop(this.note.pages.length)]);
   }
 
   private insert(s: Stroke): void {

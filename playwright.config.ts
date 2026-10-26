@@ -6,6 +6,8 @@ const ipad = { viewport: { width: 834, height: 1194 }, deviceScaleFactor: 2, has
 export default defineConfig({
   testDir: 'e2e',
   timeout: 30000,
+  // WebKit はソフトウェア描画で重く、並列にしすぎると性能テストが時間切れになる
+  workers: 2,
   use: { baseURL: 'http://localhost:4317/tsugigami/' },
   webServer: { command: 'npx vite build && npx vite preview --port 4317 --strictPort', url: 'http://localhost:4317/tsugigami/', reuseExistingServer: false, timeout: 60000 },
   projects: [

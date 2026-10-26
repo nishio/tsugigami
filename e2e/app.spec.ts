@@ -84,8 +84,17 @@ test('ペンの直後のタッチは手のひらとして無視し、指 1 本�
   await stroke(page, line(400, 600, 400, 300), 'touch', 21);
   expect(await page.evaluate(() => (window as any).tsugigami.r.view.y)).toBe(y0);
   await page.waitForTimeout(600);
-  await stroke(page, line(400, 600, 400, 300), 'touch', 22);
-  expect(await page.evaluate(() => (window as any).tsugigami.r.view.y)).toBeLessThan(y0 - 100);
+  // 指を離す直前の位置で見る(離した後は慣性で動き続ける)
+  const moved = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, r = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    const ev = (n: string, y: number, b: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: 22, pointerType: 'touch', clientX: r.left + 400, clientY: r.top + y, buttons: b }));
+    ev('pointerdown', 600, 1);
+    for (let i = 1; i <= 12; i++) ev('pointermove', 600 - i * 25, 1);
+    const y = T.r.view.y;
+    ev('pointerup', 300, 0);
+    return y;
+  });
+  expect(moved).toBeCloseTo(y0 - 300, 0);
   expect(await count(page)).toBe(1);
 });
 

@@ -82,10 +82,83 @@ export function drawMarker(ctx: CanvasRenderingContext2D, s: Ink): void {
   ctx.restore();
 }
 
-export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, clip?: Box): void {
-  if (s.kind === 'marker') { drawMarker(ctx, s); return; }
-  drawPenSegments(ctx, s, 1, clip);
-  drawPenTail(ctx, s);
+/**
+ * 書き終わった線のパス。点の列は変わらないので、ストロークごとに 1 回だけ作って使い回す。
+ * ペンは筆圧で太さが変わる輪郭を 1 つの多角形にして塗る(区間ごとに描くより描画命令が 1/数十 になる)。
+ * 鋭く折り返す所で輪郭が裏返って欠けるのを、細い中心線を重ねて埋める。
+ */
+interface StrokePaths { fill?: Path2D; line: Path2D; lw: number }
+const pathCache = new WeakMap<Stroke, StrokePaths>();
+
+function strokePaths(s: Stroke): StrokePaths {
+  let c = pathCache.get(s);
+  if (c) return c;
+  const P = s.pts, n = P.length / 3, line = new Path2D();
+  line.moveTo(P[0], P[1]);
+  for (let j = 3; j < P.length; j += 3) line.lineTo(P[j], P[j + 1]);
+  if (s.kind === 'marker') {
+    if (n === 1) line.lineTo(P[0] + 0.01, P[1]);
+    c = { line, lw: s.width };
+  } else {
+    const fill = new Path2D();
+    let minR = Infinity;
+    if (n === 1) {
+      const r = penWidth(s.width, P[2]) / 2;
+      fill.arc(P[0], P[1], r, 0, Math.PI * 2);
+      minR = r;
+    } else {
+      const L: number[] = [], R: number[] = [];
+      let a0 = 0, a1 = 0;
+      for (let i = 0; i < n; i++) {
+        const p = Math.max(0, i - 1) * 3, q = Math.min(n - 1, i + 1) * 3;
+        let tx = P[q] - P[p], ty = P[q + 1] - P[p + 1];
+        const tl = Math.hypot(tx, ty) || 1;
+        tx /= tl; ty /= tl;
+        const r = penWidth(s.width, P[i * 3 + 2]) / 2, x = P[i * 3], y = P[i * 3 + 1];
+        if (r < minR) minR = r;
+        L.push(x - ty * r, y + tx * r);
+        R.push(x + ty * r, y - tx * r);
+        if (i === 0) a0 = Math.atan2(tx, -ty);
+        if (i === n - 1) a1 = Math.atan2(tx, -ty);
+      }
+      const side = (A: number[], rev: boolean) => {
+        const k = A.length / 2, at = (i: number) => (rev ? k - 1 - i : i) * 2;
+        for (let i = 1; i < k - 1; i++) {
+          const u = at(i), v = at(i + 1);
+          fill.quadraticCurveTo(A[u], A[u + 1], (A[u] + A[v]) / 2, (A[u + 1] + A[v + 1]) / 2);
+        }
+        const e = at(k - 1);
+        fill.lineTo(A[e], A[e + 1]);
+      };
+      const e = (n - 1) * 3;
+      fill.moveTo(L[0], L[1]);
+      side(L, false);
+      fill.arc(P[e], P[e + 1], penWidth(s.width, P[e + 2]) / 2, a1, a1 - Math.PI, true);
+      side(R, true);
+      fill.arc(P[0], P[1], penWidth(s.width, P[2]) / 2, a0 + Math.PI, a0, true);
+      fill.closePath();
+    }
+    c = { fill, line, lw: minR * 1.2 };
+  }
+  pathCache.set(s, c);
+  return c;
+}
+
+export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke): void {
+  const c = strokePaths(s);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = ctx.fillStyle = s.color;
+  if (s.kind === 'marker') {
+    ctx.save();
+    ctx.globalAlpha = MARKER_ALPHA;
+    ctx.lineWidth = c.lw;
+    ctx.stroke(c.line);
+    ctx.restore();
+    return;
+  }
+  ctx.fill(c.fill!);
+  ctx.lineWidth = c.lw;
+  ctx.stroke(c.line);
 }
 
 /** マーカーを下、ペンを上。それぞれ書いた順 */
@@ -154,6 +227,9 @@ export class Renderer {
   private bytes = 0;
   private frame = 0;
   private clock = 0;
+  private prefetchTimer = 0;
+  private held = false;
+  private deferred = false;
 
   constructor(private stage: HTMLElement) {
     const mk = () => { const c = document.createElement('canvas'); c.className = 'layer'; stage.append(c); return c; };
@@ -188,9 +264,13 @@ export class Renderer {
 
   dropTiles(): void { this.tiles.clear(); this.bytes = 0; }
 
+  /**
+   * box の範囲のタイルを汚す(次の合成で必ず焼き直す)。
+   * null は全体: 古い絵を見せたまま、時間の許す範囲で順に焼き直す(紙の種類の切り替えなど)。
+   */
   invalidate(box: Box | null): void {
     for (const [key, t] of this.tiles) {
-      if (!box) { t.dirty = true; continue; }
+      if (!box) { t.rs = -1; continue; }
       const [k, tx, ty] = key.split(':').map(Number), tw = TILE / 2 ** k;
       if (overlaps(box, [tx * tw, ty * tw, (tx + 1) * tw, (ty + 1) * tw])) t.dirty = true;
     }
@@ -255,7 +335,17 @@ export class Renderer {
   }
 
   request(): void {
+    if (this.held) { this.deferred = true; return; }
     if (!this.frame) this.frame = requestAnimationFrame(() => { this.frame = 0; this.draw(); });
+  }
+
+  /**
+   * ペンで書いている間は、画面全体の合成(先読みや焼き直し)を保留する。
+   * 書いている線の描画だけにメインスレッドを使わせるため。
+   */
+  hold(on: boolean): void {
+    this.held = on;
+    if (!on && this.deferred) { this.deferred = false; this.request(); }
   }
 
   /** 今すぐ合成する(書き終わりの確定など、ちらつかせたくないとき) */
@@ -288,6 +378,25 @@ export class Renderer {
       const sy = Math.round((ty * tw * v.s + v.y) * d), ey = Math.round(((ty + 1) * tw * v.s + v.y) * d);
       if (t) { t.used = now; ctx.drawImage(t.c, sx, sy, ex - sx, ey - sy); }
       else this.paperDirect(tx * tw, ty * tw, tw);
+    }
+    // 見えている分が済んだら、上下半画面ぶんを先に焼いておく(スクロールで白紙が見えないように)
+    if (!pending && !this.prefetchTimer) {
+      const half = Math.ceil((wy1 - wy0) / 2 / tw), rows: number[] = [];
+      for (let i = 1; i <= half; i++) rows.push(ty1 + i, ty0 - i);
+      let more = false;
+      outer: for (const ty of rows) {
+        if (ty * tw > content[3] || (ty + 1) * tw < content[1]) continue;
+        for (let tx = tx0; tx <= tx1; tx++) {
+          const key = k + ':' + tx + ':' + ty;
+          let t = this.tiles.get(key);
+          if (!t || t.dirty || t.rs !== this.rs) {
+            if (performance.now() - t0 >= FRAME_BUDGET_MS) { more = true; break outer; }
+            t = this.renderTile(key, k, tx, ty, t);
+          }
+          t.used = now;
+        }
+      }
+      if (more) this.prefetchTimer = window.setTimeout(() => { this.prefetchTimer = 0; this.request(); }, 40);
     }
     this.evict(now);
     this.onOverlay();
@@ -324,7 +433,7 @@ export class Renderer {
     const doc = this.doc!;
     drawPaper(ctx, doc.note, area, 1 / f);
     const list = paintOrder(doc.query(area).filter(s => !doc.hidden.has(s.id)));
-    for (const s of list) drawStroke(ctx, s, area);
+    for (const s of list) drawStroke(ctx, s);
     return t;
   }
 
