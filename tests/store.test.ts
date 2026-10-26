@@ -64,4 +64,33 @@ describe('Store', () => {
     await expect(a.importAll({ foo: 1 } as never)).rejects.toThrow();
     a.close();
   });
+
+  it('接続が切れても開き直して保存し、状態を知らせる', async () => {
+    const a = await Store.open('t7');
+    const n = newNote(1);
+    await a.putNote(n);
+    const seen: { pending: number; error: string | null }[] = [];
+    a.onStatus = s => seen.push(s);
+    // Safari で裏に回った後に起きる「接続が切れた」状態を、下の接続を閉じて再現する
+    (a as unknown as { db: IDBDatabase }).db.close();
+    const w1 = a.saveStrokes([mk('k1', n.id)], []);
+    const w2 = a.saveStrokes([mk('k2', n.id)], ['k1']);
+    await Promise.all([w1, w2]);
+    expect((await a.strokesOf(n.id)).map(s => s.id)).toEqual(['k2']);
+    expect(seen.some(s => s.error)).toBe(true);
+    expect(a.status).toEqual({ pending: 0, error: null });
+    a.close();
+  });
+
+  it('書き込みは並べた順に、並べた時点の内容で保存される', async () => {
+    const a = await Store.open('t8');
+    const n = newNote(1);
+    const p1 = a.putNote(n);
+    n.title = '二度目';
+    const p2 = a.putNote(n);
+    n.title = '保存していない変更';
+    await Promise.all([p1, p2]);
+    expect((await a.getNote(n.id))!.title).toBe('二度目');
+    a.close();
+  });
 });

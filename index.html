@@ -81,14 +81,39 @@
     </details>
 
     <section class="block">
-      <h3>バックアップ</h3>
+      <h3>GitHub への自動バックアップ</h3>
+      <p id="ghInfo" class="muted"></p>
+      <div class="row" id="ghActions" hidden>
+        <button type="button" id="ghNow">今すぐ送る</button>
+        <button type="button" id="ghRestore">GitHub から読み込む</button>
+      </div>
+      <details id="ghSetup">
+        <summary>設定</summary>
+        <div class="form">
+          <label>repo(owner/name)<input id="ghRepo" placeholder="nishio/tsugigami-notes" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+          <label>トークン<input id="ghToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <p class="muted small">
+            非公開の repo を作り、<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> を発行して貼ってください。
+            Repository access は「Only select repositories」でその repo だけ、Permissions は「Contents: Read and write」だけで足ります。
+            トークンはこの iPad の中にだけ保存されます。
+          </p>
+          <div class="row">
+            <button type="button" id="ghSave" class="primary">保存して試す</button>
+            <button type="button" id="ghClear">設定を消す</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="block">
+      <h3>ファイルへの書き出し</h3>
       <p id="backupInfo" class="muted"></p>
       <div class="row">
         <button type="button" id="exportBtn">書き出す</button>
         <label class="button" for="importFile">読み込む</label>
         <input type="file" id="importFile" class="visually-hidden" accept=".json,application/json">
       </div>
-      <p class="muted small">ノートはこの iPad のブラウザの中にだけ保存されています。ときどき書き出して、ファイル アプリなどに保管してください。</p>
+      <p class="muted small">ノートはまずこの iPad の中に保存されます。GitHub を設定していないときは、ときどき書き出して、ファイル アプリなどに保管してください。</p>
     </section>
 
     <section class="block">
@@ -104,6 +129,7 @@
     <p class="muted small" id="version"></p>
   </aside>
 
+  <div id="saveWarn" role="alert" hidden></div>
   <div id="toast" role="status" hidden></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

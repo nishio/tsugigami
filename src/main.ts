@@ -1,5 +1,6 @@
 // 起動と画面の部品(道具バー、ノート一覧、選択メニュー、紙の継ぎ足しボタン)。
 import './style.css';
+import { AutoBackup } from './autobackup';
 import { Controller } from './controller';
 import { Doc, type DocSink } from './doc';
 import { type Note, PAGE_W, newNote, noteBounds, pageIndexAt, pageRect } from './model';
@@ -47,11 +48,31 @@ async function main(): Promise<void> {
     console.error(e);
     toast('保存に失敗しました。ノート一覧から書き出してバックアップを取ってください: ' + ((e as Error)?.message ?? String(e)), true);
   };
+  // ---- GitHub への自動バックアップ ----
+  const auto = new AutoBackup(store, {
+    listNotes: () => store.listNotes(),
+    strokesOf: id => (doc?.note.id === id ? Promise.resolve([...doc.strokes.values()]) : store.strokesOf(id)),
+  }, () => c.busy);
+  store.onChange = () => auto.changed();
+  auto.onStatus = () => { renderGh(); updateBadge(); };
+  await auto.load();
+
+  // 書き込みは Store が成功するまで再試行する(失敗で捨てない)。失敗している間は消えない警告を出す
   const sink: DocSink = {
     saveStrokes: (put, del) => { store.saveStrokes(put, del).catch(fail); },
     saveNote: n => { store.putNote(n).catch(fail); },
     invalidate: b => r.invalidate(b),
   };
+  let saveWasBad = false;
+  store.onStatus = s => {
+    const bad = !!s.error && s.pending > 0, el = $('#saveWarn');
+    el.hidden = !bad;
+    if (bad) el.textContent = `この iPad への保存に失敗しています(${s.pending} 件待ち)。自動でやり直しています。アプリを閉じないでください。`;
+    else if (saveWasBad) toast('保存できました');
+    saveWasBad = bad;
+    updateBadge();
+  };
+
 
   // ---- 表示位置の保存 ----
   let viewTimer = 0;
@@ -301,6 +322,12 @@ async function main(): Promise<void> {
 
     const last = await store.getMeta<number>('lastBackup');
     $('#backupInfo').textContent = last ? `最後に書き出したのは ${fmtDate(last)}` : 'まだ一度も書き出していません';
+    renderGh();
+    ($('#ghRepo') as HTMLInputElement).value = auto.cfg?.repo ?? '';
+    const tok = $('#ghToken') as HTMLInputElement;
+    tok.value = '';
+    tok.placeholder = auto.cfg ? '保存済み(変えるときだけ貼る)' : 'github_pat_…';
+    ($('#ghSetup') as HTMLDetailsElement).open = !auto.cfg;
 
     const persisted = await navigator.storage?.persisted?.().catch(() => false);
     const est = await navigator.storage?.estimate?.().catch(() => undefined);
@@ -347,6 +374,7 @@ async function main(): Promise<void> {
           return;
         }
         await store.deleteNote(n.id);
+        await auto.noteDeleted(n.id);
         await renderDrawer();
       });
     }
@@ -374,9 +402,60 @@ async function main(): Promise<void> {
   }
 
   // ---- バックアップ ----
+  function renderGh(): void {
+    const s = auto.status, info = $('#ghInfo');
+    info.classList.toggle('error', !!s.error);
+    $('#ghActions').hidden = !s.configured;
+    if (!s.configured) {
+      info.textContent = '設定されていません。設定すると、書いた内容が少し手を止めるたびに GitHub の repo へ commit されます(履歴が残るので、どの時点にも戻せます)。';
+      return;
+    }
+    const parts = [`${auto.cfg!.repo} へ送ります`, s.lastOk ? `最後に送ったのは ${fmtDate(s.lastOk)}` : 'まだ送っていません'];
+    if (s.running) parts.push('送っています…');
+    else if (s.dirty) parts.push('まだ送っていない変更があります');
+    if (s.error) parts.push('失敗: ' + s.error);
+    info.textContent = parts.join('。');
+  }
+
+  $('#ghSave').onclick = async () => {
+    const repo = ($('#ghRepo') as HTMLInputElement).value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\.git$|\/$/g, '');
+    const token = ($('#ghToken') as HTMLInputElement).value.trim() || auto.cfg?.token || '';
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast('repo は owner/name の形で書いてください', true); return; }
+    if (!token) { toast('トークンを貼ってください', true); return; }
+    try {
+      await auto.configure({ repo, token });
+      toast(auto.status.error ? '設定しましたが、送れませんでした: ' + auto.status.error : 'GitHub へ送りました', !!auto.status.error);
+      await renderDrawer();
+    } catch (e) {
+      toast('つながりませんでした: ' + ((e as Error)?.message ?? String(e)), true);
+    }
+  };
+  $('#ghClear').onclick = async () => { await auto.configure(null); await renderDrawer(); toast('GitHub の設定を消しました(repo の中身はそのままです)'); };
+  $('#ghNow').onclick = async () => {
+    await auto.run();
+    toast(auto.status.error ? '送れませんでした: ' + auto.status.error : 'GitHub へ送りました', !!auto.status.error);
+  };
+  $('#ghRestore').onclick = async () => {
+    try {
+      const n = await auto.restore();
+      toast(n ? `${n} 冊のノートを GitHub から読み込みました` : 'GitHub に手元より新しい内容はありませんでした');
+      if (doc) await openNote(doc.note.id);
+      await renderDrawer();
+    } catch (e) {
+      toast('読み込めませんでした: ' + ((e as Error)?.message ?? String(e)), true);
+    }
+  };
+
   $('#exportBtn').onclick = async () => {
     try {
       const data = await store.exportAll();
+      // 開いているノートは画面の内容が正しい(保存待ちの線があっても書き出しから漏らさない)
+      if (doc) {
+        const d = doc;
+        data.notes = data.notes.filter(n => n.id !== d.note.id).concat(structuredClone(d.note));
+        data.strokes = data.strokes.filter(s => s.noteId !== d.note.id)
+          .concat([...d.strokes.values()].map(s => ({ ...s, pts: Array.from(s.pts, v => Math.round(v * 1000) / 1000) })));
+      }
       const d = new Date(), p = (n: number) => String(n).padStart(2, '0');
       const name = `tsugigami-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
       const file = new File([JSON.stringify(data)], name, { type: 'application/json' });
@@ -417,10 +496,19 @@ async function main(): Promise<void> {
     }
   };
 
+  /**
+   * メニューの赤い点: 書いたものが守られていないかもしれないとき。
+   * 手元への保存に失敗している / GitHub を設定していて送れていない / 設定していなくて 7 日書き出していない
+   */
   async function updateBadge(): Promise<void> {
-    const last = await store.getMeta<number>('lastBackup');
-    const stale = !last || Date.now() - last > BACKUP_WARN_DAYS * 86400000;
-    ($('#menuBtn .badge') as HTMLElement).hidden = !(stale && (doc?.strokes.size ?? 0) > 0);
+    const g = auto.status;
+    let warn = !!store.status.error;
+    if (g.configured) warn ||= !!g.error && g.dirty;
+    else {
+      const last = await store.getMeta<number>('lastBackup');
+      warn ||= (!last || Date.now() - last > BACKUP_WARN_DAYS * 86400000) && (doc?.strokes.size ?? 0) > 0;
+    }
+    ($('#menuBtn .badge') as HTMLElement).hidden = !warn;
   }
 
   // ---- 永続化の申請(初めて書いたとき) ----
@@ -448,7 +536,8 @@ async function main(): Promise<void> {
   for (const n of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(n, e => e.preventDefault());
   document.addEventListener('dblclick', e => e.preventDefault());
   // 裏に回るとき、指やペンの離すイベントが届かないことがあるので状態を捨てる
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { c.reset(); flushView(); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { c.reset(); flushView(); auto.soon(); } });
+  window.addEventListener('online', () => auto.soon());
   window.addEventListener('blur', () => c.reset());
 
   const onResize = () => { r.resize(); c.updateRect(); };
@@ -462,12 +551,14 @@ async function main(): Promise<void> {
   const first = notes.find(n => n.id === lastId && !n.trashed) ?? notes.filter(n => !n.trashed).sort((a, b) => b.updated - a.updated)[0];
   if (first) await openNote(first.id); else await createNote();
   updateBadge();
+  navigator.storage?.persist?.().catch(() => {});
+  auto.run().catch(() => {}); // 前回送れなかった分があれば送る(変わっていなければ読むだけ)
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(e => console.warn('service worker', e));
   }
   // テストから状態を覗くための口
-  (window as unknown as { tsugigami: unknown }).tsugigami = { get doc() { return doc; }, r, c, store };
+  (window as unknown as { tsugigami: unknown }).tsugigami = { get doc() { return doc; }, r, c, store, auto };
 }
 
 main();

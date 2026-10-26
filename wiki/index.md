@@ -20,13 +20,15 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [縦スクロールの時間軸](concepts/縦スクロールの時間軸.md) — 1 次元に並べると書いた順が暗黙の整理軸になる
 - [手のひら判定](concepts/手のひら判定.md) — 指では描かない、ペンの近くと直後のタッチを無視する
 - [描画の層とタイル](concepts/描画の層とタイル.md) — base / live / wet の 3 層、タイルキャッシュ、ペン先の遅れを縮める工夫
+- [書いたものを守る層](concepts/書いたものを守る層.md) — 画面・保存の列・IndexedDB・GitHub・git の履歴・書き出し。失い方ごとの守り
 
 ## decisions/
 
 - [PWA として GitHub Pages に置く](decisions/2026-10-27_PWAとGitHub_Pages.md) — 次の起動で新版に切り替わる Service Worker
 - [UI フレームワークを使わない](decisions/2026-10-27_フレームワークを使わない.md) — 描画のホットパスに何も挟まない
 - [線 1 本ずつ IndexedDB へ保存する](decisions/2026-10-27_線ごとにIndexedDBへ保存.md) — 差分保存で書いたものを失わない
-- [同期は後回しにして、バックアップで守る](decisions/2026-10-27_同期は後回し_バックアップで守る.md) — 書き出し・読み込み・7 日の警告・persist
+- [同期は後回しにして、バックアップで守る](decisions/2026-10-27_同期は後回し_バックアップで守る.md) — 書き出し・読み込み・7 日の警告・persist(superseded)
+- [GitHub の非公開 repo へ自動でバックアップする](decisions/2026-10-27_GitHubの非公開repoへ自動バックアップ.md) — 手を止めるたびに commit、手元に無いものは消さない
 - [横の継ぎ足しはページ単位にする](decisions/2026-10-27_横の継ぎ足しはページ単位.md) — 「その箇所だけ右に広がる」の実現方法
 - [見た目と書き味を Notability での設定に合わせる](decisions/2026-10-27_Notabilityの書き味に合わせる.md) — issue #1。筆圧なし、見本から採った色と太さ
 
@@ -40,6 +42,8 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [iPad の Web アプリでできないこと・怪しいこと](findings/iPadとWebの制約.md) — 未確認の一覧
 - [レビューで見つかった端のケース](findings/レビューで見つかった端のケース.md) — イベントの取りこぼし、読み込みの原子性など 10 件を修正
 - [Notability のマーカーの重なりは乗算](findings/マーカーの重なりは乗算.md) — 見本の画素から推定し、e2e で再現を確認
+- [iPad の Safari では IndexedDB との接続が切れることがある](findings/SafariのIndexedDB接続切れ.md) — 文書・仕様による。開き直して再試行する
+- [GitHub へのバックアップの実測](findings/GitHubへのバックアップの実測.md) — 本物の API(CORS・空の repo)と、長いノートで送る量と時間
 
 ## themes/
 
@@ -50,3 +54,4 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 
 - [2026-10-27 Notability 置き換えの要件会話](../raw/2026-10-27_Notability置き換えの要件会話.md)
 - [2026-10-27 実機での最初の感想と issue #1](../raw/2026-10-27_実機での最初の感想とissue1.md)(見本の画像 [png](../raw/2026-10-27_issue1_テイスト.png))
+- [2026-10-27 消えないと信じられること](../raw/2026-10-27_消えないと信じられること.md)

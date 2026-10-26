@@ -87,6 +87,10 @@ nishio のフィードバック(実機の感想、要望、不満)や外部資�
 - コマンド: `npm run dev`(開発サーバ)、`npm test`(Vitest)、`npm run build`(型検査 + ビルド)、`npm run e2e`(Playwright)。
 - main へ push すると GitHub Actions が GitHub Pages(https://nishio.github.io/tsugigami/)へ公開する。
 - **書いたものを失わないことが最優先。** 保存形式を変えるときは移行処理とテストを必ず付ける。IndexedDB のスキーマバージョンを上げずに形を変えない。
+  - 守りの全体像は `wiki/concepts/書いたものを守る層.md`。保存の失敗を黙って捨てない(Store の列は成功するまで再試行する)。
+  - GitHub の repo にあるファイルの形(`notes/<id>/note.json`、`p0001.json`)を変えるときも、古い形を読めるようにしておく(repo の履歴が戻し先になるため)。
+  - 自動バックアップで、手元に無いノートのファイルを消す変更をしない。
+- GitHub のトークンをコミット・ログ・wiki に書かない。本物の GitHub での確認は `GH_REAL_REPO=nishio/tsugigami-notes GH_REAL_TOKEN=$(gh auth token) npx playwright test github-real`(確認に使ったノートは最後に消す)。
 - 起動時の案内画面、勧誘、使わない機能を入れない(Notability から離れる理由そのもの)。
 - 描画のホットパス(pointermove → 描画)に、フレームワーク、DOM 更新、同期的な重い処理を挟まない。
 - 実機でしか分からないこと(書き味、遅延、手のひら判定)は、自動テストで確かめたふりをしない。
