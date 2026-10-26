@@ -246,11 +246,18 @@ export class Renderer {
   }
 
   resize(): void {
+    const oldW = this.W, wasFit = oldW > 0 && Math.abs(this.view.s - this.fitScale()) < 0.02;
+    const [, top] = this.toWorld(0, 0);
     this.dpr = window.devicePixelRatio || 1;
     this.W = this.stage.clientWidth; this.H = this.stage.clientHeight;
     for (const c of [this.base, this.live, this.wet]) {
       c.width = Math.round(this.W * this.dpr); c.height = Math.round(this.H * this.dpr);
       c.style.width = this.W + 'px'; c.style.height = this.H + 'px';
+    }
+    // 回転や Split View で幅が変わったとき、紙が画面幅に合っていたなら合わせ直す(見ていた位置は保つ)
+    if (wasFit && oldW !== this.W) {
+      const s = this.fitScale();
+      this.view = { s, x: (this.W - PAGE_W * s) / 2, y: -top * s };
     }
     this.clampView();
     this.settle();

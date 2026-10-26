@@ -63,3 +63,13 @@ test('長いノート(約 1 万本)でも開けて、スクロールの再描画
   // ヘッドレスのブラウザはソフトウェア描画なので実機より遅い。桁違いの劣化だけを捕まえる
   expect(frames.p95).toBeLessThan(150);
 });
+
+test('画面を回転すると、幅に合わせて紙を表示し直す', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  const s0 = await page.evaluate(() => (window as any).tsugigami.r.view.s);
+  await page.setViewportSize({ width: 1194, height: 834 });
+  await expect.poll(() => page.evaluate(() => (window as any).tsugigami.r.view.s)).toBeGreaterThan(s0 * 1.3);
+  const fits = await page.evaluate(() => { const { r } = (window as any).tsugigami; return Math.abs(r.view.x - (r.W - 794 * r.view.s) / 2) < 2; });
+  expect(fits).toBe(true);
+});

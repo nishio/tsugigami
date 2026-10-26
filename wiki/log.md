@@ -26,3 +26,8 @@ updated: 2026-10-27
 - オフライン起動の e2e で Service Worker の罠を 2 つ発見(`addAll` の重複、`Vary` による照合外れ)して修正([finding](findings/ServiceWorkerのキャッシュ照合.md))。
 - 9,900 本の長いノートで計測し、ページ自動追加のたびの全体焼き直しを解消、書き終わった線を輪郭の `Path2D` キャッシュで描く方式に変更、先読みと書いている間の合成保留を追加([finding](findings/長いノートの描画性能_ヘッドレス計測.md))。
 - 慣性スクロールの速度に上限を設けた(イベント間隔が極端に短いと跳ねていた)。
+
+## [2026-10-27] develop | 回転への追従と公開版の確認
+
+- 画面幅が変わったとき(回転・Split View)、紙が幅に合っていたなら合わせ直す。見ていた位置は保つ。e2e を追加。
+- 公開版(GitHub Pages)に対して e2e の一部(保存・消しゴム・マーカー・オフライン起動)を流せる設定 `playwright.prod.config.ts` を追加し、通過を確認。本番の応答は `Vary: Accept-Encoding`、`cache-control: max-age=600`。
