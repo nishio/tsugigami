@@ -269,7 +269,10 @@ export class Renderer {
     this.request();
   }
 
-  dropTiles(): void { this.tiles.clear(); this.bytes = 0; }
+  dropTiles(): void {
+    for (const t of this.tiles.values()) t.c.width = t.c.height = 0; // Safari にメモリを返す
+    this.tiles.clear(); this.bytes = 0;
+  }
 
   /**
    * box の範囲のタイルを汚す(次の合成で必ず焼き直す)。
@@ -355,13 +358,16 @@ export class Renderer {
     if (!on && this.deferred) { this.deferred = false; this.request(); }
   }
 
-  /** 今すぐ合成する(書き終わりの確定など、ちらつかせたくないとき) */
-  drawNow(): void {
+  /**
+   * 今すぐ合成する。force なら、見えているタイルは時間の予算を無視して全部焼く
+   * (書き終わりの確定で、焼けていないタイルの上の線が一瞬消えないように)
+   */
+  drawNow(force = false): void {
     if (this.frame) { cancelAnimationFrame(this.frame); this.frame = 0; }
-    this.draw();
+    this.draw(force);
   }
 
-  private draw(): void {
+  private draw(force = false): void {
     const doc = this.doc, ctx = this.bctx, v = this.view, d = this.dpr;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = DESK; ctx.fillRect(0, 0, this.base.width, this.base.height);
@@ -379,7 +385,7 @@ export class Renderer {
       let t = this.tiles.get(key);
       const stale = !t || t.dirty || t.rs !== this.rs;
       // 編集された(dirty)タイルは必ず焼き直す。新規・倍率違いは時間の許す範囲で
-      if (stale && (t?.dirty || performance.now() - t0 < FRAME_BUDGET_MS)) t = this.renderTile(key, k, tx, ty, t);
+      if (stale && (force || t?.dirty || performance.now() - t0 < FRAME_BUDGET_MS)) t = this.renderTile(key, k, tx, ty, t);
       else if (stale) pending = true;
       const sx = Math.round((tx * tw * v.s + v.x) * d), ex = Math.round(((tx + 1) * tw * v.s + v.x) * d);
       const sy = Math.round((ty * tw * v.s + v.y) * d), ey = Math.round(((ty + 1) * tw * v.s + v.y) * d);

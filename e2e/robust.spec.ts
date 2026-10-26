@@ -114,3 +114,41 @@ test('右端のつまみで長いノートを移動でき、ページ番号が�
   await expect(page.locator('#pageLabel')).toContainText('/ 9 ページ');
   expect(await page.evaluate(() => (window as any).tsugigami.r.view.y)).toBeLessThan(y0 - 2000);
 });
+
+test('離したイベントを取りこぼしても、次にペンを置けば前の線が確定して書き続けられる', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
+    const ev = (n: string, id: number, x: number, y: number, b: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: 'pen', clientX: r.left + x, clientY: r.top + y, pressure: 0.5, buttons: b }));
+    ev('pointerdown', 40, 100, 100, 1); ev('pointermove', 40, 200, 100, 1); // up が来ない
+    ev('pointerdown', 41, 100, 200, 1); ev('pointermove', 41, 200, 200, 1); ev('pointerup', 41, 200, 200, 0);
+  });
+  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(2);
+});
+
+const twoFingerTap = (page: import('@playwright/test').Page) => page.evaluate(() => {
+  const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
+  const ev = (n: string, id: number, x: number, b: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: 'touch', clientX: r.left + x, clientY: r.top + 500, buttons: b }));
+  ev('pointerdown', 51, 300, 1); ev('pointerdown', 52, 400, 1); ev('pointerup', 51, 300, 0); ev('pointerup', 52, 400, 0);
+});
+const penLine = (page: import('@playwright/test').Page, y: number) => page.evaluate(y => {
+  const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
+  const ev = (n: string, x: number, b: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: 60, pointerType: 'pen', clientX: r.left + x, clientY: r.top + y, pressure: 0.5, buttons: b }));
+  ev('pointerdown', 100, 1); ev('pointermove', 250, 1); ev('pointerup', 250, 0);
+}, y);
+
+test('2 本指タップで取り消す。直後にペンが触れたら手のひらとみなして取り消さない', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  await penLine(page, 100);
+  await page.waitForTimeout(600); // 手のひら判定の時間を過ぎてから
+  await twoFingerTap(page);
+  await expect.poll(() => page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(0);
+  await penLine(page, 150);
+  await page.waitForTimeout(600);
+  await twoFingerTap(page);
+  await penLine(page, 200); // すぐにペン
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(2);
+});

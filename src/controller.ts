@@ -4,7 +4,7 @@ import {
   IDENTITY, type Mat, apply, bboxOf, isIdentity, lassoHit, mul, pointInPoly, rotateAt, scaleAt, strokeHit,
   transformStroke, translate, unionAll,
 } from './geom';
-import { type Box, type Stroke, type StrokeKind, newId, strokePad } from './model';
+import { type Box, type Stroke, type StrokeKind, newId, noteBounds, strokePad } from './model';
 import { type Ink, type Renderer, drawMarker, drawPenSegments, drawPenTail, drawStroke, paintOrder } from './render';
 
 export type Tool = 'pen' | 'marker' | 'eraser' | 'lasso';
@@ -17,13 +17,16 @@ const HANDLE_PX = 22;
 const ROTATE_PX = 34;
 const TAP_MS = 300;
 const TAP_MOVE_PX = 16;
+/** 2 本指タップの取り消しを実行するまでの猶予。その間にペンが触れたら手のひらだったとみなして取りやめる */
+const TAP_DELAY_MS = 250;
 const MIN_SCALE = 0.25, MAX_SCALE = 8;
 
-type Active =
-  | { k: 'draw'; id: number; kind: StrokeKind; ink: Ink & { pts: number[] }; drawn: number }
-  | { k: 'erase'; id: number; removed: Stroke[]; last: [number, number]; sp: [number, number] }
-  | { k: 'lasso'; id: number; poly: number[] }
-  | { k: 'xform'; id: number; mode: 'move' | 'scale' | 'rotate'; start: [number, number]; m0: Mat; pivot: [number, number] };
+/** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
+type Active = { id: number; doc: Doc } & (
+  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; drawn: number }
+  | { k: 'erase'; removed: Stroke[]; last: [number, number]; sp: [number, number] }
+  | { k: 'lasso'; poly: number[] }
+  | { k: 'xform'; mode: 'move' | 'scale' | 'rotate'; start: [number, number]; m0: Mat; pivot: [number, number] });
 
 interface Selection { strokes: Stroke[]; box: Box; m: Mat }
 interface GState { c: [number, number]; d: number; n: number }
@@ -54,6 +57,7 @@ export class Controller {
   private hover: [number, number] | null = null;
   private pred: number[][] | null = null;
   private momentum = 0;
+  private tapTimer = 0;
   private rect = { left: 0, top: 0 };
   private strokeStat = { t0: 0, ev: 0, pt: 0, lag: 0, lagN: 0 };
 
@@ -73,6 +77,16 @@ export class Controller {
 
   get doc(): Doc | null { return this.r.doc; }
   get busy(): boolean { return !!this.active || !!this.gesture; }
+
+  /** アプリが裏に回ったときなど: 指の状態を捨て、書きかけは確定させる */
+  reset(): void {
+    if (this.active) this.finish(this.active);
+    this.touches.clear();
+    this.ignored.clear();
+    this.gesture = null;
+    clearTimeout(this.tapTimer);
+    this.stopMomentum();
+  }
 
   updateRect(): void {
     const b = this.stage.getBoundingClientRect();
@@ -295,7 +309,9 @@ export class Controller {
   private onDown(e: PointerEvent): void {
     const t = e.pointerType, now = performance.now();
     this.stopMomentum();
-    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(); }
+    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(); clearTimeout(this.tapTimer); }
+    // 離したイベントを取りこぼして書きかけが残っていたら、ここで確定させる(固まらないように)
+    if (t !== 'touch' && this.active && this.active.id !== e.pointerId) this.finish(this.active);
     if (t === 'touch') {
       if (this.active || now - this.lastPen < PALM_MS) { this.ignored.add(e.pointerId); this.stats.palm++; return; }
       this.touches.set(e.pointerId, this.pt(e));
@@ -314,7 +330,7 @@ export class Controller {
     if (this.sel) {
       const h = this.hitSelection(sp);
       if (h) {
-        this.active = { k: 'xform', id: e.pointerId, mode: h.mode, start: [x, y], m0: this.sel.m, pivot: h.pivot };
+        this.active = { k: 'xform', id: e.pointerId, doc, mode: h.mode, start: [x, y], m0: this.sel.m, pivot: h.pivot };
         this.overlay();
         return;
       }
@@ -323,19 +339,19 @@ export class Controller {
     switch (this.tool) {
       case 'pen': case 'marker': {
         const b = this.tool === 'pen' ? this.pen : this.marker;
-        this.active = { k: 'draw', id: e.pointerId, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, drawn: 1 };
+        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, drawn: 1 };
         this.pred = null;
         this.r.hold(true);
         this.overlay();
         break;
       }
       case 'eraser':
-        this.active = { k: 'erase', id: e.pointerId, removed: [], last: [x, y], sp };
+        this.active = { k: 'erase', id: e.pointerId, doc, removed: [], last: [x, y], sp };
         this.eraseTo(x, y);
         this.renderWet();
         break;
       case 'lasso':
-        this.active = { k: 'lasso', id: e.pointerId, poly: [x, y] };
+        this.active = { k: 'lasso', id: e.pointerId, doc, poly: [x, y] };
         this.r.hold(true);
         break;
     }
@@ -393,9 +409,13 @@ export class Controller {
       }
       case 'xform': {
         const [x, y] = r.toWorld(...this.pt(e)), [sx, sy] = a.start, [px, py] = a.pivot, sel = this.sel!;
-        if (a.mode === 'move') sel.m = mul(translate(x - sx, y - sy), a.m0);
-        else if (a.mode === 'scale') {
-          const f = Math.max(0.05, Math.hypot(x - px, y - py) / (Math.hypot(sx - px, sy - py) || 1));
+        if (a.mode === 'move') {
+          // 選択の中心がノートの外へ出ないようにする(出ると見えず、選び直せなくなる)
+          const b = sel.box, [cx, cy] = apply(a.m0, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2), nb = noteBounds(a.doc.note);
+          const dx = Math.min(nb[2], Math.max(nb[0], cx + x - sx)) - cx, dy = Math.min(nb[3], Math.max(nb[1], cy + y - sy)) - cy;
+          sel.m = mul(translate(dx, dy), a.m0);
+        } else if (a.mode === 'scale') {
+          const f = Math.min(8, Math.max(0.05, Math.hypot(x - px, y - py) / (Math.hypot(sx - px, sy - py) || 1)));
           sel.m = mul(scaleAt(f, px, py), a.m0);
         } else {
           const th = Math.atan2(y - py, x - px) - Math.atan2(sy - py, sx - px);
@@ -412,8 +432,14 @@ export class Controller {
     if (e.pointerType === 'pen') this.lastPen = performance.now();
     if (this.ignored.delete(id)) return;
     if (this.touches.has(id)) { this.touches.delete(id); this.gestureLift(); return; }
-    const a = this.active, doc = this.doc;
-    if (!a || id !== a.id || !doc) return;
+    const a = this.active;
+    if (!a || id !== a.id) return;
+    this.finish(a);
+  }
+
+  /** 書く・消す・投げ縄・変形を終える */
+  private finish(a: Active): void {
+    const doc = a.doc;
     this.active = null;
     this.pred = null;
     this.r.hold(false);
@@ -429,7 +455,7 @@ export class Controller {
         };
         doc.exec({ t: 'add', s: [s] });
         // タイルを焼き直してからライブ層を消す(ちらつかせない)
-        this.r.drawNow();
+        if (doc === this.doc) this.r.drawNow(true);
         this.onInk();
         break;
       }
@@ -455,8 +481,9 @@ export class Controller {
   }
 
   private eraseTo(x: number, y: number): void {
-    const a = this.active, doc = this.doc;
-    if (a?.k !== 'erase' || !doc) return;
+    const a = this.active;
+    if (a?.k !== 'erase') return;
+    const doc = a.doc;
     const rad = ERASE_PX / this.r.view.s, [lx, ly] = a.last;
     const steps = Math.max(1, Math.ceil(Math.hypot(x - lx, y - ly) / rad));
     for (let i = 1; i <= steps; i++) {
@@ -508,7 +535,8 @@ export class Controller {
     this.gesture = null;
     const now = performance.now();
     if (now - g.t0 < TAP_MS && g.moved < TAP_MOVE_PX) {
-      if (g.max === 2) this.undo(); else if (g.max === 3) this.redo();
+      clearTimeout(this.tapTimer);
+      this.tapTimer = window.setTimeout(() => { if (g.max === 2) this.undo(); else if (g.max === 3) this.redo(); }, TAP_DELAY_MS);
       return;
     }
     if (g.max === 1 && now - g.lastT < 60 && Math.hypot(g.vx, g.vy) > 0.25) this.startMomentum(g.vx, g.vy);

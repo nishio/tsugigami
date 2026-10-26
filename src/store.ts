@@ -105,9 +105,17 @@ export class Store {
     for (const note of data.notes) {
       const cur = await this.getNote(note.id);
       if (cur && cur.updated >= note.updated) continue;
-      if (cur) await this.deleteNote(note.id);
-      await this.putNote(note);
-      await this.saveStrokes(byNote.get(note.id) ?? [], []);
+      // 古い線の削除と新しい内容の書き込みを 1 つのトランザクションにする。
+      // 途中で失敗しても、手元のノートが消えたまま残らない(全部戻る)
+      const tx = this.db.transaction(['notes', 'strokes'], 'readwrite');
+      const os = tx.objectStore('strokes');
+      const keys = os.index('noteId').getAllKeys(note.id);
+      keys.onsuccess = () => {
+        for (const k of keys.result) os.delete(k);
+        tx.objectStore('notes').put(note);
+        for (const st of byNote.get(note.id) ?? []) os.put(st);
+      };
+      await done(tx);
       n++;
     }
     return n;

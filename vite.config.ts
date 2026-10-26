@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
@@ -14,7 +16,10 @@ function serviceWorker(): Plugin {
     generateBundle(_, bundle) {
       // cache.addAll は同じ URL が 2 回あると全体が失敗する(index.html はバンドルにも入っている)
       const files = [...new Set(['./', 'index.html', ...PUBLIC_FILES, ...Object.keys(bundle)])].filter(f => !f.endsWith('.map'));
-      const version = createHash('sha256').update(files.sort().join('\n')).digest('hex').slice(0, 12);
+      // public/ のファイルは名前が変わらないので、中身も版に含める(アイコンや manifest の変更を配る)
+      const h = createHash('sha256').update(files.sort().join('\n'));
+      for (const f of PUBLIC_FILES) h.update(readFileSync(resolve('public', f)));
+      const version = h.digest('hex').slice(0, 12);
       const source = `const CACHE = 'tsugigami-${version}';
 const FILES = ${JSON.stringify(files)};
 self.addEventListener('install', e => {

@@ -37,6 +37,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [Service Worker のキャッシュが当たらない 2 つの罠](findings/ServiceWorkerのキャッシュ照合.md) — addAll の重複と Vary。自動テストで確認
 - [長いノートの描画性能(ヘッドレスでの計測)](findings/長いノートの描画性能_ヘッドレス計測.md) — 9,900 本で計測、全体の焼き直しを避けた
 - [iPad の Web アプリでできないこと・怪しいこと](findings/iPadとWebの制約.md) — 未確認の一覧
+- [レビューで見つかった端のケース](findings/レビューで見つかった端のケース.md) — イベントの取りこぼし、読み込みの原子性など 10 件を修正
 
 ## themes/
 

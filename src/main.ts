@@ -61,6 +61,7 @@ async function main(): Promise<void> {
 
   // ---- ノートを開く ----
   async function openNote(id: string): Promise<void> {
+    c.reset(); // 書きかけがあれば元のノートに確定させてから切り替える
     c.clearSelection();
     flushView();
     const note = await store.getNote(id);
@@ -198,6 +199,11 @@ async function main(): Promise<void> {
     const before = doc.note.pages.map(p => ({ ...p }));
     const after = before.map((p, k) => (k === i ? { w: p.w + dw } : { ...p }));
     c.clearSelection();
+    // 外す前に、選択の変形を確定させたうえで白紙か確かめ直す
+    if (dw < 0) {
+      const pr = pageRect(doc.note, i);
+      if (doc.query([PAGE_W * (before[i].w - 1), pr[1], pr[2], pr[3]]).length) { r.request(); return; }
+    }
     doc.exec({ t: 'pages', before, after });
     r.clampView();
     r.request();
@@ -371,13 +377,21 @@ async function main(): Promise<void> {
       const d = new Date(), p = (n: number) => String(n).padStart(2, '0');
       const name = `tsugigami-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
       const file = new File([JSON.stringify(data)], name, { type: 'application/json' });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: name });
-      } else {
+      const download = () => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(file); a.download = name; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-      }
+      };
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: name });
+        } catch (e) {
+          // 書き出しの準備に時間がかかると、共有シートを開く許可(ユーザー操作の直後であること)が切れて
+          // NotAllowedError になる。そのときは通常のダウンロードで出す
+          if ((e as Error)?.name === 'AbortError') throw e;
+          download();
+        }
+      } else download();
       await store.setMeta('lastBackup', Date.now());
       updateBadge();
       await renderDrawer();
@@ -430,7 +444,9 @@ async function main(): Promise<void> {
   // ページ自体のピンチズームを止める
   for (const n of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(n, e => e.preventDefault());
   document.addEventListener('dblclick', e => e.preventDefault());
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushView(); });
+  // 裏に回るとき、指やペンの離すイベントが届かないことがあるので状態を捨てる
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { c.reset(); flushView(); } });
+  window.addEventListener('blur', () => c.reset());
 
   const onResize = () => { r.resize(); c.updateRect(); };
   new ResizeObserver(onResize).observe(stage);
