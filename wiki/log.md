@@ -60,3 +60,15 @@ updated: 2026-10-27
 - 守りの全体を [書いたものを守る層](concepts/書いたものを守る層.md) にまとめた。旧判断「同期は後回し」は superseded にした。
 - Kozaneba 連携への答え(手書きを並べ替えたい、画像でよい、今すぐではない)を [Kozaneba との関係](themes/Kozanebaとの関係.md) に記録。
 - 補足: この日のマシンは他の処理(ローカル LLM など)で負荷平均 16〜24 になり、並列の e2e で WebKit がタイムアウトした。`--workers=1` で通した。
+
+## [2026-10-27] ingest | Kozaneba 作り直しでの tsugigami
+
+- Kozaneba の wiki で「互換性を全部捨てて作り直すなら」を考えた。そこで nishio が答えた「同時編集は要件ではない。Firebaseに残る必要はない。tsugigamiはソースになり得る」を [raw](../raw/2026-10-27_Kozaneba作り直しでのtsugigami.md) に保存した。
+- [Kozaneba との関係](themes/Kozanebaとの関係.md) に「作り直す場合の位置づけ」の節を足した。作り直す Kozaneba の保存は tsugigami と同じ GitHub repo の形にする。手書きは版を固定して線の id で指し、直接描く。これで画像の置き場所が要らなくなる。すべて推測。
+- tsugigami 側の制約として、repo のファイルの形と線の id が Kozaneba への約束になる、と書いた。
+- 考察の本体は Kozaneba wiki の `wiki/themes/互換性を捨てた作り直し.md`。
+
+## [2026-10-27] query | 書いたものを守る仕組みの解説
+
+- nishio に「解説して」と頼まれ、線 1 本が画面から GitHub の履歴まで届く道筋、保存の再試行、GitHub への commit の作り方、消さない規則、失い方ごとに残るものを説明した。
+- 「file back」の指示で、その解説を [書いたものを守る層](concepts/書いたものを守る層.md) に統合した(新しいページは作らず、既存の概念ページを厚くした)。

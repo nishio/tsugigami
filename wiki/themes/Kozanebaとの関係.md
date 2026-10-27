@@ -4,6 +4,7 @@ type: theme
 created: 2026-10-27
 updated: 2026-10-27
 sources:
+  - raw/2026-10-27_Kozaneba作り直しでのtsugigami.md
   - raw/2026-10-27_Notability置き換えの要件会話.md
   - raw/2026-10-27_実機での最初の感想とissue1.md
   - raw/2026-10-27_消えないと信じられること.md
@@ -66,9 +67,48 @@ nishio が「Kozanebaとの連携について考えたいね」と言った([raw
 - 向き: 手書き → Kozaneba で並べ替える(上の 1 番の形に近い)。
 - 画像のままでよい(文字にしなくてよい)。
 - 今すぐではない。先に [書いたものを守る層](../concepts/書いたものを守る層.md) を固めた。
-- 画像の置き場所は未定。GitHub の非公開 repo は画像を公開の URL で出せないので、Kozaneba の `<img src>` にはそのまま使えない(Gyazo などの外部か、別の置き場が要る)。【推測】
+- 画像の置き場所は未定。GitHub の非公開 repo は画像を公開の URL で出せないので、**今の** Kozaneba の `<img src>` にはそのまま使えない(Gyazo などの外部か、別の置き場が要る)。【推測】作り直す場合は、この問題自体が消える(次の節)。
 
-### 最初に聞いたこと
+### Kozaneba を作り直す場合の位置づけ(2026-10-27)
+
+Kozaneba の wiki で「互換性を全部捨てて作り直すなら」を考えた([raw](../../raw/2026-10-27_Kozaneba作り直しでのtsugigami.md))。考察の本体は Kozaneba wiki の [互換性を捨てた作り直し](../../../kozaneba-dev-ai/wiki/themes/互換性を捨てた作り直し.md)。
+
+### nishio が決めたこと
+
+> 同時編集は要件ではない。Firebaseに残る必要はない。tsugigamiはソースになり得る
+
+- 上の「最初に聞いたこと」の 4(今の Kozaneba の改造か、新しいものの部品か)への答えに近い。**作り直す Kozaneba では、tsugigami の手書きは Source(源の長文)の一種になる。**
+
+### 作り直す Kozaneba の保存は、tsugigami と同じ形になる【推測】
+
+- 同時編集が要らず Firebase を離れてよいので、作り直す Kozaneba の保存は tsugigami の [GitHub の非公開 repo へ自動バックアップ](../decisions/2026-10-27_GitHubの非公開repoへ自動バックアップ.md) と同じ形を提案した。
+  - 手元は IndexedDB で、正本は GitHub の非公開 repo。手が止まったら自動で commit する。サーバは持たない。
+  - tsugigami で確かめた次のことを、そのまま前提にしている。
+    - ブラウザから git data API を直接呼べる(CORS)。
+    - 空の repo では 409 になる。
+    - ref を `force: false` で進めてやり直す。
+    - 手元に無いものは消さない。
+
+### 手書きを Source にするときの形【推測】
+
+- **こざねは、tsugigami-notes の版を固定して手書きを指す。** 例: `{repo: nishio/tsugigami-notes, commit, note id, 線の id の並び(または範囲)}`。
+  - 線は書いた後に変わらず、id を持つ([model.ts](../../src/model.ts) の `Stroke.id`、[実測](../findings/GitHubへのバックアップの実測.md))。
+  - そのため、範囲より線の id で指す方が丈夫そう。消しゴムで消しても、commit を固定していれば元の線は読める。
+- **画像の置き場所が要らなくなる。** 作り直す Kozaneba が、同じ fine-grained token(2 つの repo に効かせる)で `notes/<id>/p0001.json` を読み、該当する線を直接描けばよい。PNG にして外部ホストに上げる必要がない。
+  - 線を描く処理は、tsugigami と共有できるかもしれない。
+- **戻り道**: こざねから tsugigami の該当ノートの該当位置へ飛ぶ。上の連携案 2(「ノート + 位置」を指す URL)が、作り直しの場合も要る。
+
+### tsugigami 側に効く制約
+
+- **repo のファイルの形が、tsugigami の外への約束になる。** Kozaneba が `p0001.json` を読むなら、その形を変えると Kozaneba 側も壊れる。CLAUDE.md の「古い形を読めるようにしておく」は、自分の履歴のためだけでなく、Kozaneba の読み手のためにも要る。
+- 線の id は、一度付けたら変えない。
+
+### まだ決めていないこと
+
+- Kozaneba のデータを tsugigami-notes と同じ repo に置くか、別の repo にするか。
+- 今すぐやることではない、という nishio の判断(上の節)は変わっていない。作り直しに進むかどうか自体も未定。
+
+## 最初に聞いたこと
 
 1. 欲しいのはどちら向きか。手書きを Kozaneba で並べ替えたいのか、Kozaneba の配置に手で書き込みたいのか。具体的な場面を一つ。
 2. こざねになった手書きは、画像のままでよいか。検索やマージのために文字が要るか。
@@ -76,6 +116,9 @@ nishio が「Kozanebaとの連携について考えたいね」と言った([raw
 4. これは今の Kozaneba を改造する話か。tsugigami を新しいものの部品(源の長文を書く帳面)として育てる話か。
 
 ## Sources
+
+- [raw/2026-10-27_Kozaneba作り直しでのtsugigami.md](../../raw/2026-10-27_Kozaneba作り直しでのtsugigami.md)
+- Kozaneba wiki の [互換性を捨てた作り直し](../../../kozaneba-dev-ai/wiki/themes/互換性を捨てた作り直し.md)
 
 - [raw/2026-10-27_Notability置き換えの要件会話.md](../../raw/2026-10-27_Notability置き換えの要件会話.md)
 - [raw/2026-10-27_実機での最初の感想とissue1.md](../../raw/2026-10-27_実機での最初の感想とissue1.md)

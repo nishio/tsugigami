@@ -20,7 +20,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [縦スクロールの時間軸](concepts/縦スクロールの時間軸.md) — 1 次元に並べると書いた順が暗黙の整理軸になる
 - [手のひら判定](concepts/手のひら判定.md) — 指では描かない、ペンの近くと直後のタッチを無視する
 - [描画の層とタイル](concepts/描画の層とタイル.md) — base / live / wet の 3 層、タイルキャッシュ、ペン先の遅れを縮める工夫
-- [書いたものを守る層](concepts/書いたものを守る層.md) — 画面・保存の列・IndexedDB・GitHub・git の履歴・書き出し。失い方ごとの守り
+- [書いたものを守る層](concepts/書いたものを守る層.md) — 線 1 本が GitHub の履歴まで届く道筋、再試行・commit の作り方・消さない規則、失い方ごとに残るもの
 
 ## decisions/
 
@@ -48,7 +48,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 ## themes/
 
 - [実機でしか分からないこと](themes/実機でしか分からないこと.md) — nishio に確かめてほしい項目と状態
-- [Kozaneba との関係](themes/Kozanebaとの関係.md) — 1 次元と 2 次元、対になる論点。連携の形の下調べと質問
+- [Kozaneba との関係](themes/Kozanebaとの関係.md) — 1 次元と 2 次元、対になる論点。連携の形の下調べと質問。Kozaneba を作り直すなら、手書きは Source になり、保存は tsugigami と同じ GitHub repo の形に(2026-10-27)
 
 ## raw/
 
