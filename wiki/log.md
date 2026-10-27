@@ -72,3 +72,6 @@ updated: 2026-10-27
 
 - nishio に「解説して」と頼まれ、線 1 本が画面から GitHub の履歴まで届く道筋、保存の再試行、GitHub への commit の作り方、消さない規則、失い方ごとに残るものを説明した。
 - 「file back」の指示で、その解説を [書いたものを守る層](concepts/書いたものを守る層.md) に統合した(新しいページは作らず、既存の概念ページを厚くした)。
+
+## [2026-10-27] query | 画像の置き場(Gyazo 禁止を受けて)
+- [Kozanebaとの関係](themes/Kozanebaとの関係.md) に追記した: Gyazo は会社のルールで禁止された。Kozaneba は画像の置き場を Firebase Storage に移す(draft PR #78 で画像の貼り付けとドロップを Storage に上げる)。merge されれば、手書きを送るときは PNG をクリップボードに載せるだけでよく、画像ホストは要らない。
