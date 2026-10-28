@@ -6,6 +6,8 @@ interface Commit { tree: string; parents: string[]; message: string }
 
 export class FakeGitHub {
   blobs = new Map<string, string>();
+  /** base64 で上げられたバイナリの blob(lab の PNG など) */
+  bins = new Map<string, Uint8Array>();
   /** tree の sha -> (path -> blob の sha) */
   trees = new Map<string, Map<string, string>>();
   commits = new Map<string, Commit>();
@@ -21,7 +23,14 @@ export class FakeGitHub {
   files(): Map<string, string> {
     if (!this.ref) return new Map();
     const t = this.trees.get(this.commits.get(this.ref)!.tree)!;
-    return new Map([...t].map(([p, sha]) => [p, this.blobs.get(sha)!]));
+    return new Map([...t].filter(([, sha]) => this.blobs.has(sha)).map(([p, sha]) => [p, this.blobs.get(sha)!]));
+  }
+
+  /** 先頭の commit のバイナリのファイル(path -> バイト列) */
+  binaries(): Map<string, Uint8Array> {
+    if (!this.ref) return new Map();
+    const t = this.trees.get(this.commits.get(this.ref)!.tree)!;
+    return new Map([...t].filter(([, sha]) => this.bins.has(sha)).map(([p, sha]) => [p, this.bins.get(sha)!]));
   }
 
   /** 別の端末が書き込んだことにする */
@@ -50,8 +59,8 @@ export class FakeGitHub {
     if (method === 'GET' && path === '/git/ref/heads/main') {
       return this.ref ? json(200, { object: { sha: this.ref } }) : json(409, { message: 'Git Repository is empty.' });
     }
-    if (method === 'PUT' && path === '/contents/README.md') {
-      await this.pushFromElsewhere('README.md', fromBase64(body.content));
+    if (method === 'PUT' && (m = path.match(/^\/contents\/(.+)$/))) {
+      await this.pushFromElsewhere(m[1], fromBase64(body.content));
       return json(201, {});
     }
     if (method === 'GET' && (m = path.match(/^\/git\/commits\/(\w+)$/))) {
@@ -67,9 +76,27 @@ export class FakeGitHub {
       });
     }
     if (method === 'POST' && path === '/git/blobs') {
+      if (body.encoding === 'base64') {
+        const bytes = Uint8Array.from(atob(body.content), ch => ch.charCodeAt(0));
+        const sha = await gitBlobSha(bytes);
+        this.bins.set(sha, bytes);
+        return json(201, { sha });
+      }
       const sha = await gitBlobSha(body.content);
       this.blobs.set(sha, body.content);
       return json(201, { sha });
+    }
+    // contents API(lab が使う): ディレクトリの一覧と、ファイルの中身
+    if (method === 'GET' && (m = path.match(/^\/contents\/(.+)$/))) {
+      const t = this.ref ? this.trees.get(this.commits.get(this.ref)!.tree)! : new Map<string, string>();
+      const p = m[1];
+      if (t.has(p)) {
+        const sha = t.get(p)!;
+        return json(200, { path: p, sha, encoding: 'base64', content: toBase64(this.blobs.get(sha)!).replace(/(.{60})/g, '$1\n') });
+      }
+      const list = [...t].filter(([q]) => q.startsWith(p + '/') && !q.slice(p.length + 1).includes('/'))
+        .map(([q, sha]) => ({ name: q.slice(p.length + 1), path: q, sha, type: 'file' }));
+      return list.length ? json(200, list) : json(404, { message: 'Not Found' });
     }
     if (method === 'GET' && (m = path.match(/^\/git\/blobs\/(\w+)$/))) {
       const text = this.blobs.get(m[1])!;
@@ -79,7 +106,7 @@ export class FakeGitHub {
       const t = new Map(this.trees.get(body.base_tree) ?? []);
       for (const e of body.tree) {
         if (e.sha === null) t.delete(e.path);
-        else { if (!this.blobs.has(e.sha)) return json(422, { message: 'blob not found' }); t.set(e.path, e.sha); }
+        else { if (!this.blobs.has(e.sha) && !this.bins.has(e.sha)) return json(422, { message: 'blob not found' }); t.set(e.path, e.sha); }
       }
       const sha = this.id('t'); this.trees.set(sha, t);
       return json(201, { sha });

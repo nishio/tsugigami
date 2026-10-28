@@ -50,8 +50,8 @@ export const toBase64 = (text: string) => btoa(Array.from(enc.encode(text), b =>
 export const fromBase64 = (b64: string) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, '')), ch => ch.charCodeAt(0)));
 
 /** git が blob に付ける SHA-1。手元の内容と repo の内容を、ダウンロードせずに比べられる */
-export async function gitBlobSha(text: string): Promise<string> {
-  const body = enc.encode(text), head = enc.encode(`blob ${body.length}\0`);
+export async function gitBlobSha(text: string | Uint8Array): Promise<string> {
+  const body = typeof text === 'string' ? enc.encode(text) : text, head = enc.encode(`blob ${body.length}\0`);
   const buf = new Uint8Array(head.length + body.length);
   buf.set(head); buf.set(body, head.length);
   const h = new Uint8Array(await crypto.subtle.digest('SHA-1', buf));

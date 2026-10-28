@@ -2,7 +2,7 @@
 title: Index
 type: meta
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-10-28
 ---
 
 # tsugigami 開発 wiki
@@ -31,6 +31,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [GitHub の非公開 repo へ自動でバックアップする](decisions/2026-10-27_GitHubの非公開repoへ自動バックアップ.md) — 手を止めるたびに commit、手元に無いものは消さない
 - [横の継ぎ足しはページ単位にする](decisions/2026-10-27_横の継ぎ足しはページ単位.md) — 「その箇所だけ右に広がる」の実現方法
 - [見た目と書き味を Notability での設定に合わせる](decisions/2026-10-27_Notabilityの書き味に合わせる.md) — issue #1。筆圧なし、見本から採った色と太さ
+- [iPad 自身を実験機にする](decisions/2026-10-28_iPad自身を実験機にする.md) — `?lab=1` で開いた本物のアプリが、非公開 repo の experiments/queue/ のスクリプトを拾って実行し、結果を commit する。AI 側は `tools/lab.mjs`
 
 ## findings/
 
@@ -44,6 +45,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [Notability のマーカーの重なりは乗算](findings/マーカーの重なりは乗算.md) — 見本の画素から推定し、e2e で再現を確認
 - [iPad の Safari では IndexedDB との接続が切れることがある](findings/SafariのIndexedDB接続切れ.md) — 文書・仕様による。開き直して再試行する
 - [GitHub へのバックアップの実測](findings/GitHubへのバックアップの実測.md) — 本物の API(CORS・空の repo)と、長いノートで送る量と時間
+- [線のガタつきを数値で比べる](findings/線のガタつきの計測.md) — 実機で確認。保存された点列は Notability と同等に滑らか。ガタつきの正体は、書いている最中に区間を足していくライブ層の描き方で縁のアンチエイリアスが潰れること(Chromium で再現)。iPad でペンを離した後も残る理由は実機で切り分け待ち。道具は `tools/wobble.py`、`e2e/render-json.spec.ts`、`e2e/render-live.spec.ts`
 
 ## themes/
 
@@ -55,3 +57,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [2026-10-27 Notability 置き換えの要件会話](../raw/2026-10-27_Notability置き換えの要件会話.md)
 - [2026-10-27 実機での最初の感想と issue #1](../raw/2026-10-27_実機での最初の感想とissue1.md)(見本の画像 [png](../raw/2026-10-27_issue1_テイスト.png))
 - [2026-10-27 消えないと信じられること](../raw/2026-10-27_消えないと信じられること.md)
+- [2026-10-28 線がガタガタしている](../raw/2026-10-28_線がガタガタ.md)
+- [2026-10-28 issue #2 と書き出した JSON](../raw/2026-10-28_issue2_線がガタガタ.md)(画像 [png](../raw/2026-10-28_issue2_線がガタガタ.png)、[json](../raw/tsugigami-20261028-1519.json))
+- [2026-10-28 AI が Safari で実験できるようにしたい](../raw/2026-10-28_AIがSafariで実験.md)
+- [2026-10-28 両方のアプリでゆっくり直線を引いた比較](../raw/2026-10-28_issue2_直線の比較.md)([tsugigami](../raw/2026-10-28_issue2_直線_tsugigami.png)、[Notability](../raw/2026-10-28_issue2_直線_Notability.png)、[json](../raw/tsugigami-20261028-1535.json))

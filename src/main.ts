@@ -36,8 +36,10 @@ const fmtDate = (t: number) => {
 };
 
 async function main(): Promise<void> {
+  // ?lab=1: 実験機。別の保存領域を使い、本物のノートには触らない(src/lab/)
+  const lab = new URLSearchParams(location.search).has('lab');
   let store: Store;
-  try { store = await Store.open(); } catch (e) { toast('保存領域を開けませんでした: ' + String(e), true); return; }
+  try { store = await Store.open(lab ? 'tsugigami-lab' : undefined); } catch (e) { toast('保存領域を開けませんでした: ' + String(e), true); return; }
 
   const stage = $('#stage');
   const r = new Renderer(stage);
@@ -545,7 +547,7 @@ async function main(): Promise<void> {
   onResize();
 
   // ---- 起動 ----
-  $('#version').textContent = `tsugigami ${__BUILD__}`;
+  $('#version').textContent = `tsugigami ${__BUILD__}${lab ? ' lab' : ''}`;
   const lastId = await store.getMeta<string>('lastNote');
   const notes = await store.listNotes();
   const first = notes.find(n => n.id === lastId && !n.trashed) ?? notes.filter(n => !n.trashed).sort((a, b) => b.updated - a.updated)[0];
@@ -557,8 +559,13 @@ async function main(): Promise<void> {
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(e => console.warn('service worker', e));
   }
-  // テストから状態を覗くための口
-  (window as unknown as { tsugigami: unknown }).tsugigami = { get doc() { return doc; }, r, c, store, auto };
+  // テストと lab から状態を覗く・動かすための口
+  const app = { get doc() { return doc; }, r, c, store, auto, openNote, createNote };
+  (window as unknown as { tsugigami: unknown }).tsugigami = app;
+  if (lab) {
+    const m = await import('./lab/index');
+    await m.startLab(app, stage);
+  }
 }
 
 main();

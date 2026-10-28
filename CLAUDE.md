@@ -14,7 +14,8 @@ nishio が iPad + Apple Pencil で毎日使う手書きノートを、Web 技術
 ├── index.html, src/     アプリ本体(TypeScript + Vite、フレームワークなし)
 ├── public/              manifest、アイコン(Service Worker はビルド時に生成)
 ├── tests/               Vitest の単体テスト
-├── tools/               アイコン生成などの補助スクリプト
+├── tools/               アイコン生成、線の計測(wobble.py)、lab への実験の送信(lab.mjs)
+├── experiments/         lab(iPad 上の実験機)に送る実験スクリプト
 ├── spike/               本体に入る前の実験コード(書き味テストなど)。参照用に残す
 ├── raw/                 一次資料(不変)。nishio の発言、実機での計測結果、外部記事のクリップ
 └── wiki/                LLM 管理レイヤ
@@ -94,6 +95,7 @@ nishio のフィードバック(実機の感想、要望、不満)や外部資�
 - 起動時の案内画面、勧誘、使わない機能を入れない(Notability から離れる理由そのもの)。
 - 描画のホットパス(pointermove → 描画)に、フレームワーク、DOM 更新、同期的な重い処理を挟まない。
 - 実機でしか分からないこと(書き味、遅延、手のひら判定)は、自動テストで確かめたふりをしない。
+- iPad の Safari で確かめたいことは **lab** に頼む: nishio が iPad で `https://nishio.github.io/tsugigami/?lab=1` を開いておき、AI は `lab` を使うスクリプト(async 関数の本文。API は `src/lab/api.ts`)を `experiments/` に書いて `node tools/lab.mjs run experiments/<name>.js` で送る。結果は `lab-results/<id>/`(git に入れない。残す価値のあるものは `raw/` に写す)。詳細は `wiki/decisions/2026-10-28_iPad自身を実験機にする.md`。
 
 ## 関連
 
