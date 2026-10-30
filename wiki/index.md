@@ -2,7 +2,7 @@
 title: Index
 type: meta
 created: 2026-10-27
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # tsugigami 開発 wiki
@@ -50,6 +50,8 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [線のガタつきを数値で比べる](findings/線のガタつきの計測.md) — 実機で確認。保存された点列は Notability と同等に滑らか。ガタつきの正体は、書いている最中に区間を足していくライブ層の描き方で縁のアンチエイリアスが潰れること(Chromium で再現)。iPad でペンを離した後も残る理由は実機で切り分け待ち。道具は `tools/wobble.py`、`e2e/render-json.spec.ts`、`e2e/render-live.spec.ts`
 
 - [置いた手は短いタッチの群れとして届く(iPad の記録)](findings/置いた手は短いタッチの群れとして届く.md) — 実機で確認。書いている間は iPadOS が止めている。手は 3〜12 点・中央値 43ms の群れ、半分は pointercancel。ピンチ・スクロールは 2 点以下、cancel 0。動き出しの速さでは分けられない。2 本指タップは長い方の指 41〜75ms、手の触れは 9〜33ms。Pencil を持っている間の手の触れは OS が取り消す
+- [2 本指タップと手の触れは、長さと pointercancel でしか分けられない](findings/タップと手の触れは長さとcancelでしか分けられない.md) — 実機で確認。タップの記録の答えを file back したもの。着地のタイミング・間隔は重なる。分かれ目は長さ(≤33 / ≥41ms)と cancel。線が消えるなら次は 2 本指タップ取り消しの廃止
+- [Pencil を持っている間は、手の触れを iPadOS が取り消す(見立て)](findings/Pencilを持っている間は手の触れをOSが取り消す.md) — 未確認。Pencil を手に持っていた 3 場面では手の触れが全部 cancel、置いたときだけ素通り。確かめ方つき
 
 ## themes/
 
@@ -69,3 +71,4 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [2026-10-30 手のひらの判定は想像ではなくデータを集めるべき](../raw/2026-10-30_想像ではなくデータを集めるべき.md)
 - [2026-10-30 lab: 置いた手・ピンチ・スクロール・議事録のタッチの記録](../raw/2026-10-30_lab_palm-rest.md)([記録](../raw/2026-10-30_lab_palm-rest/))
 - [2026-10-30 lab: わざとのタップと、手を置いてすぐ離す動きの記録](../raw/2026-10-30_lab_taps.md)([記録](../raw/2026-10-30_lab_taps/))
+- [2026-10-31 Wiki に file back](../raw/2026-10-31_Wikiにfile_back.md)

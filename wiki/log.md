@@ -132,3 +132,8 @@ updated: 2026-10-27
 - 手の 2 点の触れとタップは、着地のタイミングも間隔も重なり、長さ(≤33ms / ≥41ms)と cancel でしか分けられない。`TAP_MIN_MS = 30`(指のどれかが 30ms 以上)を足し、再生で手だけの記録の線が残り、タップ 15 回では取り消しが働くことを確かめた。
 - 手だけの記録に「ちょうど 3 点・すべて up・150/34/126ms」の組があり、3 本指タップと区別できない → やり直しのジェスチャーは復活させない([判断](decisions/2026-10-30_手の群れとpointercancelで見分ける.md)、[計測](findings/置いた手は短いタッチの群れとして届く.md))。
 - e2e の合成 2 本指タップを 60ms 触れる形に直した(0ms のタップは本物には無い)。
+
+## [2026-10-31] ingest | Wiki に file back(nishio)
+- nishio「Wikiにfile back」「file back知らないの？LLM Wikiのことをちゃんと調べて」([raw](../raw/2026-10-31_Wikiにfile_back.md))。Karpathy の LLM Wiki の Query の節 "good answers can be filed back into the wiki as new pages" のこと。会話で返した答えは wiki のページにする。CLAUDE.md の Query 3 を「提案する」から「収める」に書き換えた。
+- タップの記録の答えを [2 本指タップと手の触れは長さと pointercancel でしか分けられない](findings/タップと手の触れは長さとcancelでしか分けられない.md) に収めた。表の中に埋もれていた見立てを [Pencil を持っている間は手の触れを OS が取り消す](findings/Pencilを持っている間は手の触れをOSが取り消す.md)(未確認、確かめ方つき)に分けた。確度の違う主張を 1 ページに混ぜないため。
+- 訂正: taps の記録もビルド 2026-10-28 16:08 で実行されていて(log.txt の env)、接地面の大きさは入っていない。raw の見出しに訂正を追記し、計測ページを直した。

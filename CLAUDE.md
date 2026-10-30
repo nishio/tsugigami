@@ -77,7 +77,7 @@ nishio のフィードバック(実機の感想、要望、不満)や外部資�
 ### Query(問い合わせ)
 1. `wiki/index.md` から関連ページを特定して読み、必要ならコードを一次参照する。
 2. 回答に参照ページへのリンクを含める。
-3. 価値ある合成は新規ページにすることを提案する。
+3. 価値ある合成は wiki のページにして収める(**file back**。Karpathy の "good answers can be filed back into the wiki as new pages")。会話に長い分析を返したら、提案で止めず、その答えをページにする。nishio が「file back」と言ったらこれ。
 4. `wiki/log.md` に `## [YYYY-MM-DD] query | <問い>`。
 
 ### Lint
