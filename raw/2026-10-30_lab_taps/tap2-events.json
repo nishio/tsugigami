@@ -1,0 +1,718 @@
+[
+ {
+  "t": 1870208,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124418,
+  "x": 580.5,
+  "y": 526.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1870208,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124419,
+  "x": 445,
+  "y": 548,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1870208,
+  "type": "pointermove",
+  "pt": "touch",
+  "id": 267124419,
+  "x": 443.5,
+  "y": 538.5,
+  "p": 0,
+  "buttons": 1,
+  "co": [
+   [
+    443.5,
+    538.5,
+    0,
+    1870208
+   ]
+  ],
+  "pr": [
+   [
+    443.5,
+    538.5
+   ]
+  ]
+ },
+ {
+  "t": 1870208,
+  "type": "pointermove",
+  "pt": "touch",
+  "id": 267124419,
+  "x": 443.5,
+  "y": 539,
+  "p": 0,
+  "buttons": 1,
+  "co": [
+   [
+    443.5,
+    539,
+    0,
+    1870208
+   ]
+  ],
+  "pr": [
+   [
+    443.5,
+    539
+   ]
+  ]
+ },
+ {
+  "t": 1870208,
+  "type": "pointermove",
+  "pt": "touch",
+  "id": 267124419,
+  "x": 443.5,
+  "y": 541,
+  "p": 0,
+  "buttons": 1,
+  "co": [
+   [
+    443.5,
+    541,
+    0,
+    1870208
+   ]
+  ],
+  "pr": [
+   [
+    443.5,
+    541
+   ]
+  ]
+ },
+ {
+  "t": 1870275,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124418,
+  "x": 580.5,
+  "y": 526.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1870275,
+  "type": "pointermove",
+  "pt": "touch",
+  "id": 267124419,
+  "x": 443,
+  "y": 543.5,
+  "p": 0,
+  "buttons": 1,
+  "co": [
+   [
+    443,
+    543.5,
+    0,
+    1870275
+   ]
+  ],
+  "pr": [
+   [
+    443,
+    543.5
+   ]
+  ]
+ },
+ {
+  "t": 1870283,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124419,
+  "x": 441,
+  "y": 547.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1870508,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124420,
+  "x": 444.5,
+  "y": 545,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1870525,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124421,
+  "x": 586.5,
+  "y": 519.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1870558,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124421,
+  "x": 586.5,
+  "y": 519.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1870566,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124420,
+  "x": 444.5,
+  "y": 545,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1870833,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124422,
+  "x": 443,
+  "y": 542.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1870833,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124423,
+  "x": 584.5,
+  "y": 513,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1870883,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124422,
+  "x": 443,
+  "y": 542.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1870883,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124423,
+  "x": 584.5,
+  "y": 513,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1871225,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124424,
+  "x": 584,
+  "y": 529,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1871225,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124425,
+  "x": 448,
+  "y": 555,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1871275,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124424,
+  "x": 584,
+  "y": 529,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1871275,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124425,
+  "x": 448,
+  "y": 555,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1871592,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124426,
+  "x": 441,
+  "y": 575,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1871592,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124427,
+  "x": 582,
+  "y": 538,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1871592,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124427,
+  "x": 582,
+  "y": 538,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1871642,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124426,
+  "x": 441,
+  "y": 575,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1872726,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124428,
+  "x": 577.5,
+  "y": 619.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1872726,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124429,
+  "x": 436.5,
+  "y": 661,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1872726,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124429,
+  "x": 436.5,
+  "y": 661,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1872784,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124428,
+  "x": 577.5,
+  "y": 619.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1872976,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124430,
+  "x": 431.5,
+  "y": 670.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1872976,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124431,
+  "x": 574,
+  "y": 625.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873051,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124430,
+  "x": 431.5,
+  "y": 670.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873051,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124431,
+  "x": 574,
+  "y": 625.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873243,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124432,
+  "x": 421.5,
+  "y": 684.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873243,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124433,
+  "x": 558.5,
+  "y": 648,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873293,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124432,
+  "x": 421.5,
+  "y": 684.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873301,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124433,
+  "x": 558.5,
+  "y": 648,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873493,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124434,
+  "x": 556.5,
+  "y": 652.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873493,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124435,
+  "x": 422.5,
+  "y": 685,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873543,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124434,
+  "x": 556.5,
+  "y": 652.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873543,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124435,
+  "x": 422.5,
+  "y": 685,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873777,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124436,
+  "x": 557,
+  "y": 649,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873777,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124437,
+  "x": 423.5,
+  "y": 685.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1873826,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124436,
+  "x": 557,
+  "y": 649,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1873826,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124437,
+  "x": 423.5,
+  "y": 685.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1874636,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124438,
+  "x": 625.5,
+  "y": 472.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1874636,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124439,
+  "x": 470.5,
+  "y": 492,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1874685,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124438,
+  "x": 625.5,
+  "y": 472.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1874693,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124439,
+  "x": 470.5,
+  "y": 492,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1874861,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124440,
+  "x": 604,
+  "y": 474.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1874861,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124441,
+  "x": 441,
+  "y": 508.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1874910,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124440,
+  "x": 604,
+  "y": 474.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1874919,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124441,
+  "x": 441,
+  "y": 508.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1875102,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124442,
+  "x": 586,
+  "y": 487.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1875102,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124443,
+  "x": 424,
+  "y": 513,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1875102,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124443,
+  "x": 424,
+  "y": 513,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1875160,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124442,
+  "x": 586,
+  "y": 487.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1875327,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124444,
+  "x": 394,
+  "y": 529.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1875327,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124445,
+  "x": 560.5,
+  "y": 490.5,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1875385,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124444,
+  "x": 394,
+  "y": 529.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1875385,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124445,
+  "x": 560.5,
+  "y": 490.5,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1875603,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124446,
+  "x": 408,
+  "y": 520,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1875603,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124447,
+  "x": 572.5,
+  "y": 490,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1875644,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124446,
+  "x": 408,
+  "y": 520,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1875644,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124447,
+  "x": 572.5,
+  "y": 490,
+  "p": 0,
+  "buttons": 0
+ },
+ {
+  "t": 1877487,
+  "type": "pointerdown",
+  "pt": "touch",
+  "id": 267124448,
+  "x": 536,
+  "y": 1035,
+  "p": 0,
+  "buttons": 1
+ },
+ {
+  "t": 1877528,
+  "type": "pointerup",
+  "pt": "touch",
+  "id": 267124448,
+  "x": 536,
+  "y": 1035,
+  "p": 0,
+  "buttons": 0
+ }
+]

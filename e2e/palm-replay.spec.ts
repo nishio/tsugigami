@@ -4,7 +4,20 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 type Ev = { t: number; type: string; pt: string; id: number; x: number; y: number; p: number; buttons: number; co?: number[][] };
-const load = (name: string): Ev[] => JSON.parse(readFileSync(`raw/2026-10-30_lab_palm-rest/${name}-events.json`, 'utf8'));
+const load = (name: string, dir = 'palm-rest'): Ev[] => JSON.parse(readFileSync(`raw/2026-10-30_lab_${dir}/${name}-events.json`, 'utf8'));
+
+/** ペンで短い横線を n 本引く */
+async function penLines(page: Page, n: number) {
+  await page.evaluate(n => {
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect();
+    for (let i = 0; i < n; i++) {
+      const y = 150 + i * 30;
+      const ev = (name: string, x: number, bt: number) => st.dispatchEvent(new PointerEvent(name, { bubbles: true, pointerId: 9, pointerType: 'pen', clientX: b.left + x, clientY: b.top + y, buttons: bt, pressure: bt ? 0.5 : 0 }));
+      ev('pointerdown', 100, 1); for (let x = 120; x <= 300; x += 20) ev('pointermove', x, 1); ev('pointerup', 300, 0);
+    }
+  }, n);
+  await page.waitForTimeout(600);
+}
 
 /** 記録を実時間で再生する(pointerId は小さい番号に詰め替える) */
 async function replay(page: Page, events: Ev[], speed = 1) {
@@ -37,24 +50,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('手だけを置いて転がしても(rest-only、158 タッチ)、紙は動かず取り消しも起きない', async ({ page }) => {
-  // 取り消される線を 1 本用意しておく
-  await page.evaluate(() => {
-    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect();
-    const ev = (n: string, x: number, bt: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: 9, pointerType: 'pen', clientX: b.left + x, clientY: b.top + 200, buttons: bt, pressure: bt ? 0.5 : 0 }));
-    ev('pointerdown', 100, 1); for (let x = 120; x <= 300; x += 20) ev('pointermove', x, 1); ev('pointerup', 300, 0);
-  });
-  await page.waitForTimeout(600);
+  await penLines(page, 1); // 取り消されうる線を 1 本
   const r = await replay(page, load('rest-only'));
   console.log(test.info().title.slice(0, 30), JSON.stringify(r));
   expect(r.after.s).toBe(r.before.s);
   expect(r.after.x).toBe(r.before.x);
   expect(r.after.y).toBe(r.before.y);
-  // 記録の先頭(0.00 秒)の 2 点・17ms の短い触れが 2 本指タップに見えて、線が取り消される。
-  // 本物の 2 本指タップの長さを記録してから(experiments/taps.js)、タップの最短時間を決める
-  test.info().annotations.push({ type: 'known', description: `strokes after: ${r.after.strokes}(1 のまま残るべき)` });
+  // 記録の先頭(0.00 秒)の 2 点・17ms の触れが 2 本指タップに見えないこと(TAP_MIN_MS)
+  expect(r.after.strokes).toBe(1);
 });
-
-test.fixme('手だけを置いたときの短い 2 点の触れで、線が取り消されない(2 本指タップの記録待ち)', async () => {});
 
 test('わざとのピンチ(pinch)では倍率が変わる', async ({ page }) => {
   const r = await replay(page, load('pinch'));
@@ -76,4 +80,26 @@ test('議事録を書いている間(minutes、ペン 260 本)の数少ないタ
   expect(r.after.s).toBe(r.before.s);
   expect(r.after.x).toBe(r.before.x);
   expect(r.after.y).toBe(r.before.y);
+});
+
+test('わざとの 2 本指タップ(tap2、15 回)で取り消しが働く', async ({ page }) => {
+  await penLines(page, 3);
+  const r = await replay(page, load('tap2', 'taps'));
+  console.log('tap2', JSON.stringify(r));
+  expect(r.after.strokes).toBe(0);
+});
+
+test('手を置いてすぐ離す(hand-touch)では、紙は動かず線も消えない', async ({ page }) => {
+  await penLines(page, 1);
+  const r = await replay(page, load('hand-touch', 'taps'));
+  console.log('hand-touch', JSON.stringify(r));
+  expect(r.after.strokes).toBe(1);
+  expect(r.after.s).toBe(r.before.s); expect(r.after.x).toBe(r.before.x); expect(r.after.y).toBe(r.before.y);
+});
+
+test('手を置いて線を書いて離す(hand-write、5 本)で、線は 5 本残り紙は動かない', async ({ page }) => {
+  const r = await replay(page, load('hand-write', 'taps'));
+  console.log('hand-write', JSON.stringify(r));
+  expect(r.after.strokes).toBe(5);
+  expect(r.after.s).toBe(r.before.s); expect(r.after.x).toBe(r.before.x); expect(r.after.y).toBe(r.before.y);
 });

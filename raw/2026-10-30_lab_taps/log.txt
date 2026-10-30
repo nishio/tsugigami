@@ -1,0 +1,5 @@
+2026-10-30T13:33:58.980Z env {"ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15","dpr":2,"screen":[1024,1366],"stage":[1024,1182],"view":{"s":1.927734375,"x":40,"y":-509.5},"rs":1.927734375,"lowLatency":true,"stats":{"lastType":"pen","pressure":0.07999999821186066,"evRate":231.11111111111111,"ptRate":477.77777777777777,"lagMs":36.25,"palm":1,"hover":false,"coalesced":true,"predicted":true},"build":"tsugigami 2026-10-28 16:08 lab","time":"2026-10-30T13:33:58.980Z"}
+2026-10-30T13:41:00.836Z tap2 {"events":66,"touchIds":31}
+2026-10-30T13:41:15.461Z tap3 {"events":130,"touchIds":47}
+2026-10-30T13:41:47.319Z hand-touch {"events":20,"touchIds":8}
+2026-10-30T13:42:01.253Z hand-write {"events":450,"touchIds":3}

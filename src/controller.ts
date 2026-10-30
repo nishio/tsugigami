@@ -17,6 +17,11 @@ const HANDLE_PX = 22;
 const ROTATE_PX = 34;
 const TAP_MS = 300;
 const TAP_MOVE_PX = 16;
+/**
+ * タップとみなすには、指のどれかがこれ以上触れていること。iPad の記録(raw/2026-10-30_lab_taps)では
+ * わざとの 2 本指タップは長い方の指が 41〜75ms、手を置いた瞬間の 2 点の触れは 9〜33ms(多くは pointercancel で終わる)。
+ */
+const TAP_MIN_MS = 30;
 /** 2 本指タップの取り消しを実行するまでの猶予。その間にペンが触れたら手のひらだったとみなして取りやめる */
 const TAP_DELAY_MS = 250;
 const MIN_SCALE = 0.25, MAX_SCALE = 8;
@@ -48,7 +53,9 @@ type Active = { id: number; doc: Doc } & (
 interface Selection { strokes: Stroke[]; box: Box; m: Mat }
 interface GState { c: [number, number]; d: number; n: number }
 interface Gesture {
-  t0: number; moved: number; max: number; prev: GState; vx: number; vy: number; lastT: number; v0: View;
+  t0: number; moved: number; max: number;
+  /** 離れた指の中で、いちばん長く触れていた時間(ms) */
+  longest: number; prev: GState; vx: number; vy: number; lastT: number; v0: View;
   /** まだ紙を動かしていない間の、指の出発点(動き出したら null) */
   rest: GState | null;
 }
@@ -72,6 +79,7 @@ export class Controller {
 
   private active: Active | null = null;
   private touches = new Map<number, [number, number]>();
+  private touchStart = new Map<number, number>();
   /** この時刻までは新しいタッチを手とみなす(手の群れ・pointercancel の後) */
   private palmUntil = 0;
   private ignored = new Set<number>();
@@ -339,6 +347,7 @@ export class Controller {
     if (t === 'touch') {
       if (this.active || now - this.lastPen < PALM_MS || now < this.palmUntil) { this.ignored.add(e.pointerId); this.stats.palm++; return; }
       this.touches.set(e.pointerId, this.pt(e));
+      this.touchStart.set(e.pointerId, now);
       this.capture(e);
       this.gestureReset();
       // 3 点以上は手。動かした分を戻し、触れている点もしばらくの新しい点も無視する
@@ -459,7 +468,13 @@ export class Controller {
     if (this.ignored.delete(id)) return;
     // iPadOS が手のひらと判断して取り消したタッチ(記録では置いた手の 85/158 がこれで終わる。わざとの操作では 0)
     if (e.type === 'pointercancel' && this.touches.has(id)) { this.palm(performance.now()); return; }
-    if (this.touches.has(id)) { this.touches.delete(id); this.gestureLift(); return; }
+    if (this.touches.has(id)) {
+      const now = performance.now(), g = this.gesture;
+      if (g) g.longest = Math.max(g.longest, now - (this.touchStart.get(id) ?? now));
+      this.touches.delete(id); this.touchStart.delete(id);
+      this.gestureLift();
+      return;
+    }
     const a = this.active;
     if (!a || id !== a.id) return;
     this.finish(a);
@@ -531,7 +546,7 @@ export class Controller {
   }
 
   private gestureReset(): void {
-    if (!this.gesture) this.gesture = { t0: performance.now(), moved: 0, max: 0, prev: this.gState(), vx: 0, vy: 0, lastT: performance.now(), v0: { ...this.r.view }, rest: this.gState() };
+    if (!this.gesture) this.gesture = { t0: performance.now(), moved: 0, max: 0, longest: 0, prev: this.gState(), vx: 0, vy: 0, lastT: performance.now(), v0: { ...this.r.view }, rest: this.gState() };
     this.gesture.max = Math.max(this.gesture.max, this.touches.size);
     this.gesture.prev = this.gState();
     if (this.gesture.rest) this.gesture.rest = this.gesture.prev;
@@ -571,7 +586,7 @@ export class Controller {
     if (this.touches.size) { g.prev = this.gState(); return; }
     this.gesture = null;
     const now = performance.now();
-    if (now - g.t0 < TAP_MS && g.moved < TAP_MOVE_PX) {
+    if (now - g.t0 < TAP_MS && g.moved < TAP_MOVE_PX && g.longest >= TAP_MIN_MS) {
       clearTimeout(this.tapTimer);
       this.tapTimer = window.setTimeout(() => { if (g.max === 2) this.undo(); else if (g.max === 3) this.redo(); }, TAP_DELAY_MS);
       return;
@@ -590,7 +605,7 @@ export class Controller {
 
   private cancelGesture(revert = false): void {
     for (const id of this.touches.keys()) this.ignored.add(id);
-    this.touches.clear();
+    this.touches.clear(); this.touchStart.clear();
     if (revert && this.gesture) Object.assign(this.r.view, this.gesture.v0);
     this.gesture = null;
     this.r.settle();

@@ -127,10 +127,13 @@ test('離したイベントを取りこぼしても、次にペンを置けば�
   expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(2);
 });
 
-const twoFingerTap = (page: import('@playwright/test').Page) => page.evaluate(() => {
+// 本物の 2 本指タップは 41〜75ms 触れている(raw/2026-10-30_lab_taps)。0ms のタップは手の触れとみなされる
+const twoFingerTap = (page: import('@playwright/test').Page) => page.evaluate(async () => {
   const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
   const ev = (n: string, id: number, x: number, b: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: 'touch', clientX: r.left + x, clientY: r.top + 500, buttons: b }));
-  ev('pointerdown', 51, 300, 1); ev('pointerdown', 52, 400, 1); ev('pointerup', 51, 300, 0); ev('pointerup', 52, 400, 0);
+  ev('pointerdown', 51, 300, 1); ev('pointerdown', 52, 400, 1);
+  await new Promise(f => setTimeout(f, 60));
+  ev('pointerup', 51, 300, 0); ev('pointerup', 52, 400, 0);
 });
 const penLine = (page: import('@playwright/test').Page, y: number) => page.evaluate(y => {
   const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
