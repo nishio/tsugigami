@@ -211,3 +211,69 @@ test('マーカーは乗算で重なる(白地ではその色、別の色との�
   near(px.red, mul([0xed, 0xae, 0xa6], paper));
   near(px.both, mul(mul([0x9e, 0xc2, 0xfa], [0xed, 0xae, 0xa6]), paper));
 });
+
+test('触れてから静止していた手は、後から動いても紙を動かさない(置いた手)', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  await page.evaluate(() => { const st = document.querySelector('#stage')!, b = st.getBoundingClientRect(); st.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 41, pointerType: 'touch', clientX: b.left + 500, clientY: b.top + 700, buttons: 1 })); });
+  const before = await page.evaluate(() => ({ y: (window as any).tsugigami.r.view.y as number, palm: (window as any).tsugigami.c.stats.palm as number }));
+  await page.waitForTimeout(800); // REST_MS を越えて静止
+  const after = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    for (let i = 1; i <= 6; i++) st.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 41, pointerType: 'touch', clientX: b.left + 500, clientY: b.top + 700 - i * 20, buttons: 1 }));
+    st.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 41, pointerType: 'touch', clientX: b.left + 500, clientY: b.top + 580, buttons: 0 }));
+    return { y: T.r.view.y as number, palm: T.c.stats.palm as number };
+  });
+  expect(after.y).toBe(before.y);
+  expect(after.palm).toBe(before.palm + 1);
+});
+
+test('手が紙を動かしてから時間が経ってペンが来ても、動かした分を戻す', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  const a = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    const ev = (n: string, x: number, y: number, buttons: number) =>
+      st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: 42, pointerType: 'touch', clientX: b.left + x, clientY: b.top + y, buttons }));
+    const y0 = T.r.view.y as number;
+    ev('pointerdown', 500, 700, 1);
+    for (let i = 1; i <= 5; i++) ev('pointermove', 500, 700 - i * 20, 1); // 触れてすぐ動いたので紙は動く
+    return { y0, dragged: T.r.view.y as number };
+  });
+  expect(a.dragged).not.toBe(a.y0);
+  await page.waitForTimeout(900); // 以前の 400ms の猶予を越える
+  const b = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    const ev = (n: string, id: number, type: string, x: number, y: number, buttons: number) =>
+      st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: type, clientX: b.left + x, clientY: b.top + y, buttons, pressure: buttons ? 0.5 : 0 }));
+    ev('pointerdown', 43, 'pen', 300, 300, 1);
+    const reverted = T.r.view.y as number;
+    ev('pointermove', 43, 'pen', 360, 300, 1); ev('pointerup', 43, 'pen', 360, 300, 0);
+    ev('pointerup', 42, 'touch', 500, 600, 0);
+    return { reverted, n: T.doc.strokes.size as number };
+  });
+  expect(b.reverted).toBe(a.y0);
+  expect(b.n).toBe(1);
+});
+
+test('2 本の指の間隔が少し変わっただけでは倍率は変わらず、大きく変われば拡大する', async ({ page }) => {
+  await page.goto('./');
+  await page.waitForFunction(() => (window as any).tsugigami?.doc);
+  const r = await page.evaluate(() => {
+    const st = document.querySelector('#stage')!, b = st.getBoundingClientRect(), T = (window as any).tsugigami;
+    const ev = (n: string, id: number, x: number, y: number, buttons: number) =>
+      st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: 'touch', clientX: b.left + x, clientY: b.top + y, buttons }));
+    const s0 = T.r.view.s as number;
+    ev('pointerdown', 51, 300, 500, 1); ev('pointerdown', 52, 500, 500, 1);
+    // 右の指だけ 25px 開く(間隔 +25、中心 +12.5): 紙は動くが倍率は変えない
+    for (let i = 1; i <= 5; i++) ev('pointermove', 52, 500 + i * 5, 500, 1);
+    const small = T.r.view.s as number;
+    // さらに大きく開く(間隔 +100)
+    for (let i = 1; i <= 15; i++) ev('pointermove', 52, 525 + i * 5, 500, 1);
+    const big = T.r.view.s as number;
+    ev('pointerup', 51, 300, 500, 0); ev('pointerup', 52, 600, 500, 0);
+    return { s0, small, big };
+  });
+  expect(r.small).toBe(r.s0);
+  expect(r.big).toBeGreaterThan(r.s0);
+});

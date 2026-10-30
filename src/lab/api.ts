@@ -44,6 +44,8 @@ export interface StrokeOptions {
 
 export interface RecordedEvent {
   t: number; type: string; pt: string; id: number; x: number; y: number; p: number; buttons: number;
+  /** 接地面の大きさ(CSS px)。手のひらと指を見分けられるかの材料 */
+  w: number; h: number;
   /** 合体イベント(x, y, 筆圧, 時刻) */
   co?: number[][];
   /** 予測イベント(x, y) */
@@ -167,7 +169,7 @@ export function makeLab(app: TsugigamiApp, stage: HTMLElement, ui: LabUI, out: O
       const pick = (e: PointerEvent) => [e.clientX - b.left, e.clientY - b.top, e.pressure, e.timeStamp];
       const on = (e: Event) => {
         const p = e as PointerEvent;
-        const rec: RecordedEvent = { t: p.timeStamp, type: p.type, pt: p.pointerType, id: p.pointerId, x: p.clientX - b.left, y: p.clientY - b.top, p: p.pressure, buttons: p.buttons };
+        const rec: RecordedEvent = { t: p.timeStamp, type: p.type, pt: p.pointerType, id: p.pointerId, x: p.clientX - b.left, y: p.clientY - b.top, p: p.pressure, buttons: p.buttons, w: p.width, h: p.height };
         if (p.type === 'pointermove') {
           const co = p.getCoalescedEvents?.() ?? [], pr = p.getPredictedEvents?.() ?? [];
           if (co.length) rec.co = co.map(pick);
