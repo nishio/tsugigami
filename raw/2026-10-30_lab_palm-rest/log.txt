@@ -1,0 +1,5 @@
+2026-10-30T13:20:48.624Z env {"ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15","dpr":2,"screen":[1024,1366],"stage":[1024,1182],"view":{"s":1,"x":115,"y":0},"rs":1,"lowLatency":true,"stats":{"lastType":"pen","pressure":0.09664344787597656,"evRate":234.36096976953007,"ptRate":470.5178090392098,"lagMs":5.158365261813538,"palm":0,"hover":false,"coalesced":true,"predicted":false},"build":"tsugigami 2026-10-28 16:08 lab","time":"2026-10-30T13:20:48.624Z"}
+2026-10-30T13:23:18.452Z minutes {"events":7570,"touches":36,"touchIds":7,"palm":1,"view0":{"s":1,"x":115,"y":0},"view1":{"s":1,"x":115,"y":0}}
+2026-10-30T13:23:36.076Z rest-only {"events":762,"touches":762,"touchIds":158,"palm":0,"view0":{"s":1,"x":115,"y":0},"view1":{"s":0.9375,"x":140,"y":45.5}}
+2026-10-30T13:23:46.508Z pinch {"events":658,"touches":658,"touchIds":11,"palm":0,"view0":{"s":0.9375,"x":140,"y":45.5},"view1":{"s":0.4296875,"x":341.5,"y":42.5}}
+2026-10-30T13:23:58.341Z scroll {"events":514,"touches":514,"touchIds":16,"palm":0,"view0":{"s":0.4296875,"x":341.5,"y":42.5},"view1":{"s":1.927734375,"x":40,"y":-509.5}}

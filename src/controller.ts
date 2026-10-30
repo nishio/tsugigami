@@ -27,6 +27,16 @@ const MIN_SCALE = 0.25, MAX_SCALE = 8;
 const PAN_SLOP_PX = 10;
 /** 指が触れてからこの時間内にペンが来たら、その指は手のひらだったとみなし、動かした紙を元の位置に戻す */
 const PALM_REVERT_MS = 400;
+/**
+ * 同時にこれだけの点が触れたら手。iPad の記録(raw/2026-10-30_lab_palm-rest)では、置いた手は多数(最大 12 点)の
+ * 短い(中央値 43ms)タッチの群れとして届き、わざとのピンチ・スクロールで 3 点以上になることは無かった。
+ */
+const PALM_TOUCHES = 3;
+/**
+ * 手の群れ、または iPadOS が取り消した(pointercancel)タッチの後、この時間は新しいタッチも手とみなす。
+ * 同じ記録で、手の群れは数十 ms おきに続けて届く。
+ */
+const PALM_SWARM_MS = 300;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
@@ -62,6 +72,8 @@ export class Controller {
 
   private active: Active | null = null;
   private touches = new Map<number, [number, number]>();
+  /** この時刻までは新しいタッチを手とみなす(手の群れ・pointercancel の後) */
+  private palmUntil = 0;
   private ignored = new Set<number>();
   private gesture: Gesture | null = null;
   private lastPen = -1e9;
@@ -325,10 +337,12 @@ export class Controller {
     // 離したイベントを取りこぼして書きかけが残っていたら、ここで確定させる(固まらないように)
     if (t !== 'touch' && this.active && this.active.id !== e.pointerId) this.finish(this.active);
     if (t === 'touch') {
-      if (this.active || now - this.lastPen < PALM_MS) { this.ignored.add(e.pointerId); this.stats.palm++; return; }
+      if (this.active || now - this.lastPen < PALM_MS || now < this.palmUntil) { this.ignored.add(e.pointerId); this.stats.palm++; return; }
       this.touches.set(e.pointerId, this.pt(e));
       this.capture(e);
       this.gestureReset();
+      // 3 点以上は手。動かした分を戻し、触れている点もしばらくの新しい点も無視する
+      if (this.touches.size >= PALM_TOUCHES) this.palm(now);
       return;
     }
     if (t === 'mouse' && e.button !== 0) return;
@@ -443,6 +457,8 @@ export class Controller {
     const id = e.pointerId;
     if (e.pointerType === 'pen') this.lastPen = performance.now();
     if (this.ignored.delete(id)) return;
+    // iPadOS が手のひらと判断して取り消したタッチ(記録では置いた手の 85/158 がこれで終わる。わざとの操作では 0)
+    if (e.type === 'pointercancel' && this.touches.has(id)) { this.palm(performance.now()); return; }
     if (this.touches.has(id)) { this.touches.delete(id); this.gestureLift(); return; }
     const a = this.active;
     if (!a || id !== a.id) return;
@@ -562,6 +578,14 @@ export class Controller {
     }
     if (g.max === 1 && now - g.lastT < 60 && Math.hypot(g.vx, g.vy) > 0.25) this.startMomentum(g.vx, g.vy);
     else this.r.settle();
+  }
+
+  /** 触れている点を手とみなす: 紙を動かした分を戻し、点を無視し、しばらく新しい点も無視する */
+  private palm(now: number): void {
+    this.stats.palm++;
+    this.palmUntil = now + PALM_SWARM_MS;
+    clearTimeout(this.tapTimer);
+    this.cancelGesture(true);
   }
 
   private cancelGesture(revert = false): void {

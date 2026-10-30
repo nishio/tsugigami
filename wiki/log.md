@@ -120,3 +120,9 @@ updated: 2026-10-27
 - iPad で lab が初めて動いた(Safari 27.0.1、ビルド 2026-10-28 16:08)。10/28 の線のガタつきの実験は ok、手のひらの記録は 1 段目で「次へ」を押し間違え、2 段目で「中止」が押されて終わった(status.json の error が `@...js:15:113` だけで読めなかったのは、Safari の `stack` にメッセージが入らないため。message も残すようにした)。
 - `experiments/palm-rest.js`: 各段で記録が足りないまま「次へ」が押されたら、もう一度頼むようにした(議事録はペンの down 20 回以上、など)。
 - `tools/lab.mjs`: 結果の PNG を落とすと `gh api` が「invalid UTF-8 string」で止まっていたので、blob API の base64 で受けるようにした。
+
+## [2026-10-30] ingest+develop | 手のひらの記録(palm-rest)と、記録にもとづく判定
+- lab で `palm-rest` を記録([raw](../raw/2026-10-30_lab_palm-rest.md))。議事録 150 秒でタッチは 7 本だけ(iPadOS が止めている)。手だけ置いた 14 秒は 158 本、148 本が同時 3 点以上、85 本が pointercancel、紙は倍率 0.9375 にずれた(症状の再現)。ピンチ・スクロールは 2 点以下、cancel 0([計測](findings/置いた手は短いタッチの群れとして届く.md))。
+- 規則: 同時 3 点以上 → 手、pointercancel → 手。戻して、300ms は新しい点も無視([判断](decisions/2026-10-30_手の群れとpointercancelで見分ける.md))。推測の 3 規則は superseded(「600ms 静止」は外れていた: 手の動き出しは中央値 18ms)。
+- `e2e/palm-replay.spec.ts`: 記録を同じ間隔で再生。手だけでは動かず(変更前は動いた)、ピンチ・スクロールでは動く。
+- 残る穴: 手を置いた瞬間の 2 点・17ms が 2 本指タップに見えて線が消える(再生で確認、fixme)。`experiments/taps.js`(id `20261030-1333-taps`)で本物のタップを記録してから最短時間を決める。
