@@ -25,16 +25,8 @@ const MIN_SCALE = 0.25, MAX_SCALE = 8;
  * (実機で「手をついた時に一瞬ガクガクっとなった、まれ」)。
  */
 const PAN_SLOP_PX = 10;
-/**
- * 2 本の指の間隔がこれだけ変わるまで倍率を変えない。置いた手(手のひらの付け根と小指)が転がると
- * 間隔が少し変わり、ピンチと解釈されて紙が拡大縮小してしまうため(議事録で頻発、2026-10-30)。
- */
-const ZOOM_SLOP_PX = 40;
-/**
- * 触れてからこの時間、動き出さなかった指は「置いた手」とみなし、以後その指では紙を動かさない。
- * スクロールやピンチは触れてすぐ動き出す。しばらく静止してから動くのは、考えている間に手がずれたとき。
- */
-const REST_MS = 600;
+/** 指が触れてからこの時間内にペンが来たら、その指は手のひらだったとみなし、動かした紙を元の位置に戻す */
+const PALM_REVERT_MS = 400;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
@@ -49,11 +41,6 @@ interface Gesture {
   t0: number; moved: number; max: number; prev: GState; vx: number; vy: number; lastT: number; v0: View;
   /** まだ紙を動かしていない間の、指の出発点(動き出したら null) */
   rest: GState | null;
-  /** 指の本数が最後に変わった時刻。ここから REST_MS 動き出さなければ置いた手 */
-  restT: number;
-  /** 倍率を変え始める基準の指の間隔(ZOOM_SLOP_PX 以上変わるまで倍率は変えない) */
-  d0: number;
-  zoom: boolean;
 }
 
 const pres = (e: PointerEvent) => (e.pointerType === 'pen' ? Math.max(0.05, e.pressure || 0) : 0.5);
@@ -334,9 +321,7 @@ export class Controller {
   private onDown(e: PointerEvent): void {
     const t = e.pointerType, now = performance.now();
     this.stopMomentum();
-    // 指が紙を動かしている最中にペンが触れたら、その指は手のひらだったとみなし、動かした分を元に戻す。
-    // 経過時間で区別しない: 考えている間に置いた手がずれて、数秒後に書き始めることが多い(議事録、2026-10-30)
-    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(true); clearTimeout(this.tapTimer); }
+    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(now - this.gesture.t0 < PALM_REVERT_MS); clearTimeout(this.tapTimer); }
     // 離したイベントを取りこぼして書きかけが残っていたら、ここで確定させる(固まらないように)
     if (t !== 'touch' && this.active && this.active.id !== e.pointerId) this.finish(this.active);
     if (t === 'touch') {
@@ -530,35 +515,28 @@ export class Controller {
   }
 
   private gestureReset(): void {
-    const now = performance.now(), st = this.gState();
-    if (!this.gesture) this.gesture = { t0: now, moved: 0, max: 0, prev: st, vx: 0, vy: 0, lastT: now, v0: { ...this.r.view }, rest: st, restT: now, d0: st.d, zoom: false };
-    const g = this.gesture;
-    g.max = Math.max(g.max, this.touches.size);
-    g.prev = st; g.restT = now; g.d0 = st.d; g.zoom = false;
-    if (g.rest) g.rest = st;
+    if (!this.gesture) this.gesture = { t0: performance.now(), moved: 0, max: 0, prev: this.gState(), vx: 0, vy: 0, lastT: performance.now(), v0: { ...this.r.view }, rest: this.gState() };
+    this.gesture.max = Math.max(this.gesture.max, this.touches.size);
+    this.gesture.prev = this.gState();
+    if (this.gesture.rest) this.gesture.rest = this.gesture.prev;
   }
 
   private gestureMove(): void {
     const g = this.gesture;
     if (!g) return;
     const n = this.gState(), p = g.prev, v = this.r.view, now = performance.now();
-    if (n.n !== p.n) { g.prev = n; if (g.rest) g.rest = n; g.restT = now; g.d0 = n.d; g.zoom = false; return; }
+    if (n.n !== p.n) { g.prev = n; if (g.rest) g.rest = n; return; }
     if (g.rest) {
       // 出発点から PAN_SLOP_PX 離れるまでは揺れとみなして捨てる。動き出すときは今の位置を基準にする(溜まった分だけ跳ばない)
       const o = g.rest, far = Math.hypot(n.c[0] - o.c[0], n.c[1] - o.c[1]) + Math.abs(n.d - o.d);
       g.moved = Math.max(g.moved, far);
       g.prev = n; g.lastT = now;
-      if (far >= PAN_SLOP_PX) {
-        // 触れてからしばらく静止していた指は置いた手。動き出しても紙は動かさない
-        if (now - g.restT >= REST_MS) { this.stats.palm++; this.cancelGesture(); return; }
-        g.rest = null; g.d0 = n.d;
-      }
+      if (far >= PAN_SLOP_PX) g.rest = null;
       return;
     }
     const dx = n.c[0] - p.c[0], dy = n.c[1] - p.c[1];
     v.x += dx; v.y += dy;
-    if (n.n === 2 && p.d > 0 && !g.zoom && Math.abs(n.d - g.d0) >= ZOOM_SLOP_PX) g.zoom = true;
-    if (n.n === 2 && p.d > 0 && g.zoom) {
+    if (n.n === 2 && p.d > 0) {
       const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (v.s * n.d) / p.d)), f = ns / v.s;
       v.x = n.c[0] - (n.c[0] - v.x) * f; v.y = n.c[1] - (n.c[1] - v.y) * f; v.s = ns;
     }
