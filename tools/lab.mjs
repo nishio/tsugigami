@@ -45,8 +45,9 @@ function fetchResult(id) {
   mkdirSync(dir, { recursive: true });
   for (const f of files) {
     if (f.type !== 'file') continue;
-    const bytes = gh(['-H', 'Accept: application/vnd.github.raw+json', `repos/${REPO}/contents/${f.path}`], { raw: true });
-    writeFileSync(join(dir, f.name), bytes);
+    // raw 出力は PNG などで「invalid UTF-8 string」になるので、blob を base64 で受けて自分で戻す
+    const blob = gh([`repos/${REPO}/git/blobs/${f.sha}`]);
+    writeFileSync(join(dir, f.name), Buffer.from(blob.content, 'base64'));
   }
   return dir;
 }

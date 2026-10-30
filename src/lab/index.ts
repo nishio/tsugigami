@@ -78,7 +78,7 @@ export async function startLab(app: TsugigamiApp, stage: HTMLElement): Promise<v
       returned = await Promise.race([fn(lab), new Promise((_, rej) => { const t = setInterval(() => { if (abort) { clearInterval(t); rej(new Error('中止')); } }, 200); })]);
       ok = true;
     } catch (e) {
-      error = (e as Error)?.stack ?? String(e);
+      error = `${(e as Error)?.message ?? String(e)}\n${(e as Error)?.stack ?? ''}`.trim(); // Safari の stack にはメッセージが入らない
       log('✗ ' + ((e as Error)?.message ?? String(e)));
     }
     say('');
