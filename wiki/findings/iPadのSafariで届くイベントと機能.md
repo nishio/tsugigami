@@ -21,11 +21,11 @@ sources:
 | 合体イベント(`getCoalescedEvents`) | **届く。** 議事録 150 秒の Pencil の pointermove 7,014 回すべてに付いていた。1 回あたり中央値 2 個、最大 9 個 | `minutes-events.json` の `co` |
 | 予測イベント(`getPredictedEvents`) | **届く(毎回ではない)。** 同じ 7,014 回のうち 3,228 回(46%)に付いていた。1 回あたり中央値 2 個 | `minutes-events.json` の `pr` |
 | 低遅延キャンバス(`desynchronized`) | `getContextAttributes()` が `desynchronized: true` を返す(計測欄の `lowLatency: true`)。**指定が受け付けられたことまで。** 実際に表示の遅れが縮んでいるかは測っていない | 両方の `log.txt` の env |
-| ペンのホバー | **届いていない。** 議事録 150 秒の Pencil の pointermove に `buttons: 0`(浮かせた状態)は 0 回。計測欄の `hover` も `false`(lab-results/ に残る 2026-10-28〜30 の 4 回の実行すべてで同じ)。この iPad と Pencil の組み合わせがホバーに対応していないのか、Safari が渡さないのかは分からない | `minutes-events.json`、`log.txt` の env |
+| ペンのホバー | **届いていない。** 議事録 150 秒の Pencil の pointermove に `buttons: 0`(浮かせた状態)は 0 回。計測欄の `hover` も `false`(lab-results/ に残る 2026-10-30 の 4 回の実行すべてで同じ。ページを開いている間に紙の上へ一度も届かなかった、という意味)。この iPad と Pencil の組み合わせがホバーに対応していないのか、Safari が渡さないのかは分からない | `minutes-events.json`、`log.txt` の env |
 | move イベントの頻度 | 直近のストロークで 1 秒あたり 231〜234 回、点(合体イベントを含む)は 471〜478 点 | `log.txt` の env の `evRate`・`ptRate` |
 | JS に届くまでの時間 | 直近のストロークの平均で 5.2ms と 36.3ms。1 本ずつの値で、ばらつきは大きい | `log.txt` の env の `lagMs` |
 
-計測欄の値(`stats`)は「直近のストローク」のもので、実験の始まりの時点で前の実験の値が残っている。どちらの値も本物の Pencil で書いた線から来ている(lab の合成入力には合体・予測イベントが付かない。[iPad 自身を実験機にする](../decisions/2026-10-28_iPad自身を実験機にする.md))。
+計測欄の値(`stats`)のうち、`evRate`・`ptRate`・`lagMs` は「直近のストローク」のもので、実験の始まりの時点では前の実験の値が残っている。`hover`・`coalesced`・`predicted` は「ページを開いてから一度でも届いたか」を表し、一度 `true` になると戻らない(リセットする処理は無い。[src/controller.ts](../../src/controller.ts) の `stats`)。だから `hover: false` は、そのページを開いている間に Pencil のホバーの pointermove が紙の上に一度も届かなかった、という意味になる。どちらの値も本物の Pencil で書いた線から来ている(lab の合成入力には合体・予測イベントが付かない。[iPad 自身を実験機にする](../decisions/2026-10-28_iPad自身を実験機にする.md))。
 
 ## 何に効くか
 
