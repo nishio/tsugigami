@@ -2,7 +2,7 @@
 title: Pencil を持っている間は、手の触れを iPadOS が取り消す(見立て)
 type: finding
 created: 2026-10-31
-updated: 2026-10-31
+updated: 2026-11-03
 confidence: 未確認
 sources:
   - raw/2026-10-30_lab_palm-rest.md
@@ -15,7 +15,7 @@ sources:
 
 | 場面 | 届いた手の触れ | 終わり方 |
 |---|---|---|
-| 議事録を Pencil で書く 150 秒(手は置きっぱなし) | 7 本 | 6 本 pointercancel |
+| 議事録を Pencil で書く(イベントのあった 91 秒、手は置きっぱなし) | 7 本 | 6 本 pointercancel |
 | Pencil を手に持ったまま、手を置いてすぐ離す × 5 | 2 点 × 2 回 | すべて pointercancel |
 | 手を置いて Pencil で線を書く × 5 | 2 点 × 1 回(125ms) | pointercancel。離れて 13ms 後にペンが着地 |
 | Pencil を置いて、手だけ置く 14 秒 | 158 本 | 85 本 pointercancel、残りは pointerup |

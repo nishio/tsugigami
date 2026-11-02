@@ -144,3 +144,7 @@ updated: 2026-11-03
 - [手のひら判定](concepts/手のひら判定.md) の「palm-rest の記録待ち」(10/30 に記録済み)、[全体像](overview.md) の現在地(10/27 のまま。lab・手のひらの規則・issue #2/#3 を追記、構成表に src/lab/)を直した。
 - 自動バックアップ: 既定の repo `nishio/tsugigami-notes` に `notes/` が無く、iPad のノートはまだ届いていないことを [実機でしか分からないこと](themes/実機でしか分からないこと.md) に書いた。
 - スキーマ: [Notability の書き味に合わせる](decisions/2026-10-27_Notabilityの書き味に合わせる.md) の `status: accepted` を `adopted` に。index の raw/ 一覧に Kozaneba 作り直しの raw が抜けていたので足した。
+
+## [2026-11-03] lint | 議事録の記録の長さ(palm-rest の minutes)
+- 「議事録 150 秒」は lab のログの時刻で測った記録の窓で、`minutes-events.json` の最初と最後のイベントの間は 91 秒(ペンは 81 秒)だった。窓の最初の約 59 秒にはイベントが無い。raw の「7,534 イベント」はペンだけの数で、ファイル全体は 7,570 件(タッチ 36)。
+- [計測](findings/置いた手は短いタッチの群れとして届く.md)、[Pencil を持っている間](findings/Pencilを持っている間は手の触れをOSが取り消す.md)、[iPad の Safari で届くイベントと機能](findings/iPadのSafariで届くイベントと機能.md)、[判断](decisions/2026-10-30_手の群れとpointercancelで見分ける.md) の「150 秒」を「イベントのあった 91 秒」に直した。結論(書いている間に届く手のタッチは少なく、ほぼ取り消される)は変わらない。raw と 10/30 のログは書き換えていない。
