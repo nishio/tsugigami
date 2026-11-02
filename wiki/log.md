@@ -2,7 +2,7 @@
 title: Log
 type: meta
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-11-03
 ---
 
 時系列の作業ログ。append-only。見出しは `## [YYYY-MM-DD] <action> | <subject>`(`grep "^## \[" wiki/log.md` で一覧できる)。
@@ -137,3 +137,10 @@ updated: 2026-10-27
 - nishio「Wikiにfile back」「file back知らないの？LLM Wikiのことをちゃんと調べて」([raw](../raw/2026-10-31_Wikiにfile_back.md))。Karpathy の LLM Wiki の Query の節 "good answers can be filed back into the wiki as new pages" のこと。会話で返した答えは wiki のページにする。CLAUDE.md の Query 3 を「提案する」から「収める」に書き換えた。
 - タップの記録の答えを [2 本指タップと手の触れは長さと pointercancel でしか分けられない](findings/タップと手の触れは長さとcancelでしか分けられない.md) に収めた。表の中に埋もれていた見立てを [Pencil を持っている間は手の触れを OS が取り消す](findings/Pencilを持っている間は手の触れをOSが取り消す.md)(未確認、確かめ方つき)に分けた。確度の違う主張を 1 ページに混ぜないため。
 - 訂正: taps の記録もビルド 2026-10-28 16:08 で実行されていて(log.txt の env)、接地面の大きさは入っていない。raw の見出しに訂正を追記し、計測ページを直した。
+
+## [2026-11-03] lint | wiki の記述と現状の突き合わせ
+- 10/30 の lab 実験 `aa-live-vs-tile`(線のガタつきの切り分け)は ok で終わっていたが、結果が `raw/` にも計測ページにも入っておらず、[計測](findings/線のガタつきの計測.md) と [実機でしか分からないこと](themes/実機でしか分からないこと.md) は nishio にスクショを頼むままだった。「実行済み・未取り込み」と書き、次の手をまず AI 側の計測にした(取り込み自体は未着手)。
+- raw にある lab の記録(palm-rest の log.txt・minutes-events.json、taps の log.txt)を読み直し、合体イベント・予測イベント・`desynchronized`・ペンのホバーの実機での有無を [iPad の Safari で届くイベントと機能](findings/iPadのSafariで届くイベントと機能.md) に切り出した。[iPad の Web アプリの制約](findings/iPadとWebの制約.md) の該当 3 行と、[手のひら判定](concepts/手のひら判定.md) のホバーの記述を更新。低遅延キャンバスの「Safari は対応していない可能性が高い」は外れていた。
+- [手のひら判定](concepts/手のひら判定.md) の「palm-rest の記録待ち」(10/30 に記録済み)、[全体像](overview.md) の現在地(10/27 のまま。lab・手のひらの規則・issue #2/#3 を追記、構成表に src/lab/)を直した。
+- 自動バックアップ: 既定の repo `nishio/tsugigami-notes` に `notes/` が無く、iPad のノートはまだ届いていないことを [実機でしか分からないこと](themes/実機でしか分からないこと.md) に書いた。
+- スキーマ: [Notability の書き味に合わせる](decisions/2026-10-27_Notabilityの書き味に合わせる.md) の `status: accepted` を `adopted` に。index の raw/ 一覧に Kozaneba 作り直しの raw が抜けていたので足した。

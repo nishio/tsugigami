@@ -2,7 +2,7 @@
 title: Index
 type: meta
 created: 2026-10-27
-updated: 2026-10-31
+updated: 2026-11-03
 ---
 
 # tsugigami 開発 wiki
@@ -42,12 +42,13 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [合成した PointerEvent でペン入力をテストする](findings/合成PointerEventでのテスト.md) — 自動テストで確認
 - [Service Worker のキャッシュが当たらない 2 つの罠](findings/ServiceWorkerのキャッシュ照合.md) — addAll の重複と Vary。自動テストで確認
 - [長いノートの描画性能(ヘッドレスでの計測)](findings/長いノートの描画性能_ヘッドレス計測.md) — 9,900 本で計測、全体の焼き直しを避けた
-- [iPad の Web アプリでできないこと・怪しいこと](findings/iPadとWebの制約.md) — 未確認の一覧
+- [iPad の Web アプリでできないこと・怪しいこと](findings/iPadとWebの制約.md) — 未確認の一覧(確かめた行は下のページへ切り出し)
+- [iPad の Safari で届くイベントと機能(lab の記録から)](findings/iPadのSafariで届くイベントと機能.md) — 実機で確認。合体イベントは毎回、予測イベントは約半分の move に届く。`desynchronized` は true。ペンのホバーは届いていない
 - [レビューで見つかった端のケース](findings/レビューで見つかった端のケース.md) — イベントの取りこぼし、読み込みの原子性など 10 件を修正
 - [Notability のマーカーの重なりは乗算](findings/マーカーの重なりは乗算.md) — 見本の画素から推定し、e2e で再現を確認
 - [iPad の Safari では IndexedDB との接続が切れることがある](findings/SafariのIndexedDB接続切れ.md) — 文書・仕様による。開き直して再試行する
 - [GitHub へのバックアップの実測](findings/GitHubへのバックアップの実測.md) — 本物の API(CORS・空の repo)と、長いノートで送る量と時間
-- [線のガタつきを数値で比べる](findings/線のガタつきの計測.md) — 実機で確認。保存された点列は Notability と同等に滑らか。ガタつきの正体は、書いている最中に区間を足していくライブ層の描き方で縁のアンチエイリアスが潰れること(Chromium で再現)。iPad でペンを離した後も残る理由は実機で切り分け待ち。道具は `tools/wobble.py`、`e2e/render-json.spec.ts`、`e2e/render-live.spec.ts`
+- [線のガタつきを数値で比べる](findings/線のガタつきの計測.md) — 実機で確認。保存された点列は Notability と同等に滑らか。ガタつきの正体は、書いている最中に区間を足していくライブ層の描き方で縁のアンチエイリアスが潰れること(Chromium で再現)。iPad でペンを離した後も残る理由は未切り分け(切り分け用の lab 実験は 2026-10-30 に実行済み、結果は未取り込み)。道具は `tools/wobble.py`、`e2e/render-json.spec.ts`、`e2e/render-live.spec.ts`
 
 - [置いた手は短いタッチの群れとして届く(iPad の記録)](findings/置いた手は短いタッチの群れとして届く.md) — 実機で確認。書いている間は iPadOS が止めている。手は 3〜12 点・中央値 43ms の群れ、半分は pointercancel。ピンチ・スクロールは 2 点以下、cancel 0。動き出しの速さでは分けられない。2 本指タップは長い方の指 41〜75ms、手の触れは 9〜33ms。Pencil を持っている間の手の触れは OS が取り消す
 - [2 本指タップと手の触れは、長さと pointercancel でしか分けられない](findings/タップと手の触れは長さとcancelでしか分けられない.md) — 実機で確認。タップの記録の答えを file back したもの。着地のタイミング・間隔は重なる。分かれ目は長さ(≤33 / ≥41ms)と cancel。線が消えるなら次は 2 本指タップ取り消しの廃止
@@ -63,6 +64,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [2026-10-27 Notability 置き換えの要件会話](../raw/2026-10-27_Notability置き換えの要件会話.md)
 - [2026-10-27 実機での最初の感想と issue #1](../raw/2026-10-27_実機での最初の感想とissue1.md)(見本の画像 [png](../raw/2026-10-27_issue1_テイスト.png))
 - [2026-10-27 消えないと信じられること](../raw/2026-10-27_消えないと信じられること.md)
+- [2026-10-27 Kozaneba 作り直しでの tsugigami](../raw/2026-10-27_Kozaneba作り直しでのtsugigami.md)
 - [2026-10-28 線がガタガタしている](../raw/2026-10-28_線がガタガタ.md)
 - [2026-10-28 issue #2 と書き出した JSON](../raw/2026-10-28_issue2_線がガタガタ.md)(画像 [png](../raw/2026-10-28_issue2_線がガタガタ.png)、[json](../raw/tsugigami-20261028-1519.json))
 - [2026-10-28 AI が Safari で実験できるようにしたい](../raw/2026-10-28_AIがSafariで実験.md)

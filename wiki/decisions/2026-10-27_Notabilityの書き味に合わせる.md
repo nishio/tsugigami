@@ -1,9 +1,9 @@
 ---
 title: 見た目と書き味を Notability での設定に合わせる
 type: decision
-status: accepted
+status: adopted
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-11-03
 sources:
   - raw/2026-10-27_実機での最初の感想とissue1.md
 ---
