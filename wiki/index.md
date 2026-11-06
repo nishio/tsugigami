@@ -2,7 +2,7 @@
 title: Index
 type: meta
 created: 2026-10-27
-updated: 2026-11-03
+updated: 2026-11-06
 ---
 
 # tsugigami 開発 wiki
@@ -74,3 +74,5 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [2026-10-30 lab: 置いた手・ピンチ・スクロール・議事録のタッチの記録](../raw/2026-10-30_lab_palm-rest.md)([記録](../raw/2026-10-30_lab_palm-rest/))
 - [2026-10-30 lab: わざとのタップと、手を置いてすぐ離す動きの記録](../raw/2026-10-30_lab_taps.md)([記録](../raw/2026-10-30_lab_taps/))
 - [2026-10-31 Wiki に file back](../raw/2026-10-31_Wikiにfile_back.md)
+- [2026-11-06 iPad で使った感想(パームの取り消し、fit、アイコン、題名)](../raw/2026-11-06_iPadで使った感想_パームのundo_fit_アイコン_題名.md)
+- [2026-11-06 新しいノートの題名](../raw/2026-11-06_新しいノートの題名.md)
