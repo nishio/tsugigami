@@ -403,7 +403,8 @@ async function main(): Promise<void> {
     open.type = 'button'; open.className = 'open';
     open.innerHTML = '<b></b><small></small>';
     open.querySelector('b')!.textContent = n.title;
-    open.querySelector('small')!.textContent = (inTrash ? '削除 ' + fmtDate(n.trashed!) : fmtDate(n.updated));
+    // 題名が作った日を持つので、ここは最後に書いた日時と長さ(1 冊を長く使うので、どこまで続いたかが分かるように)
+    open.querySelector('small')!.textContent = inTrash ? '削除 ' + fmtDate(n.trashed!) : `${fmtDate(n.updated)} 更新 · ${n.pages.length} ページ`;
     li.append(open);
     const act = (label: string, f: () => void) => {
       const b = document.createElement('button');

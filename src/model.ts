@@ -43,12 +43,16 @@ export interface Note {
 
 export const newId = (): string => crypto.randomUUID();
 
+/**
+ * 新しいノート。題名は「ノート(作った日~)」。1 冊を何日も続けて使うので、1 日分のノートに見える
+ * 「~のノート」にはしない(nishio「新しいノートの題名は"ノート(2026-11-03~)"でよい」2026-11-06)。
+ */
 export function newNote(now = Date.now()): Note {
   const d = new Date(now);
   const p = (n: number) => String(n).padStart(2, '0');
   return {
     id: newId(),
-    title: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} のノート`,
+    title: `ノート(${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}~)`,
     created: now, updated: now, paper: 'grid', pages: [{ w: 1 }, { w: 1 }],
   };
 }
