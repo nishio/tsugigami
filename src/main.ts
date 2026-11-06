@@ -4,7 +4,7 @@ import { AutoBackup } from './autobackup';
 import { Controller } from './controller';
 import { Doc, type DocSink } from './doc';
 import { type Note, PAGE_W, newNote, noteBounds, pageIndexAt, pageRect } from './model';
-import { Renderer } from './render';
+import { Renderer, markerColor } from './render';
 import { type Backup, Store } from './store';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
@@ -117,6 +117,9 @@ async function main(): Promise<void> {
     document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
     const kind = tool === 'marker' ? 'marker' : 'pen';
     const brush = kind === 'pen' ? c.pen : c.marker;
+    // ペンとマーカーのアイコンに、今の色を出す
+    $('[data-tool="pen"]').style.setProperty('--pen', c.pen.color);
+    $('[data-tool="marker"]').style.setProperty('--mk', markerColor(c.marker.color));
     const sw = $('#swatches');
     sw.innerHTML = '';
     for (const [color, name] of kind === 'pen' ? PEN_COLORS : MARKER_COLORS) {

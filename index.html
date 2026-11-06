@@ -25,10 +25,12 @@
 
     <div class="cluster tools" role="group" aria-label="道具">
       <button type="button" class="icon" data-tool="pen" aria-label="ペン">
-        <svg viewBox="0 0 24 24"><path d="M4.5 19.5l1.2-4.3L16.2 4.7a1.6 1.6 0 012.3 0l.8.8a1.6 1.6 0 010 2.3L8.8 18.3z"/></svg>
+        <!-- 細い軸と尖ったペン先、その下に今のペンの色で書いた細い線(マーカーと見分けやすく) -->
+        <svg viewBox="0 0 24 24"><path d="M17.3 3.9a1.6 1.6 0 012.3 0l.5.5a1.6 1.6 0 010 2.3L10 16.8 7.2 14z"/><path d="M7.2 14L5 19l5-2.2"/><path d="M14.8 6.4l2.8 2.8"/><path class="ink" d="M3.5 21.3c1.6-.9 2.7-.9 4 0s2.6.9 4 0"/></svg>
       </button>
       <button type="button" class="icon" data-tool="marker" aria-label="マーカー">
-        <svg viewBox="0 0 24 24"><path d="M6 20h12"/><path d="M7.5 16.5l2-6 6-6 4 4-6 6z" /><path d="M9.5 10.5l4 4"/></svg>
+        <!-- 太い軸と斜めに切ったペン先、その下に今のマーカーの色で塗った太い帯 -->
+        <svg viewBox="0 0 24 24"><rect class="swath" x="2.5" y="18.4" width="13" height="3.8" rx="1"/><g transform="translate(0 .6) rotate(45 12 12)"><rect x="8.6" y="1.5" width="6.8" height="9" rx="1.4"/><path d="M9.4 10.5v2.6h5.2v-2.6"/><path d="M10.3 13.1v4.3l3.4-2v-2.3"/></g></svg>
       </button>
       <button type="button" class="icon" data-tool="eraser" aria-label="消しゴム">
         <svg viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M4.6 14.6l9.2-9.2a1.4 1.4 0 012 0l3.8 3.8a1.4 1.4 0 010 2l-8.2 8.2H8.8l-4.2-4.2a1.4 1.4 0 010-2z"/><path d="M9.5 9.7l5.8 5.8"/></svg>

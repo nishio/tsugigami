@@ -35,6 +35,8 @@ button:focus-visible, .button:focus-visible { outline: 2px solid var(--accent); 
 button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 .icon { padding: 0; width: 44px; position: relative; }
 .icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.icon svg .ink { stroke: var(--pen, currentColor); stroke-width: 1.6; }
+.icon svg .swath { fill: var(--mk, currentColor); stroke: none; }
 .primary { background: var(--accent); color: #fff; }
 .badge { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
 
