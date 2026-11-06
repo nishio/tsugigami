@@ -34,6 +34,12 @@ const PALM_TOUCHES = 3;
  * 同じ記録で、手の群れは数十 ms おきに続けて届く。
  */
 const PALM_SWARM_MS = 300;
+/**
+ * fit(紙の幅 = 画面幅)の間は、2 本指の間隔がこれだけ(対数で)変わるまで倍率を変えず、縦にだけ動かす。
+ * 越えたらピンチとみなして fit を外す。iPad の記録(raw/2026-10-30_lab_palm-rest)では、わざとのピンチは
+ * 6 回中 5 回が 1.5 以上まで変わり、手の 2 点の触れは 0.11 以下だった(残る 1 回は 0.085 で、2 本指で動かしただけに見える)。
+ */
+const FIT_PINCH = 0.15;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
@@ -45,7 +51,11 @@ type Active = { id: number; doc: Doc } & (
 interface Selection { strokes: Stroke[]; box: Box; m: Mat }
 interface GState { c: [number, number]; d: number; n: number }
 interface Gesture {
-  t0: number; max: number; prev: GState; vx: number; vy: number; lastT: number; v0: View;
+  t0: number; max: number; prev: GState;
+  /** 2 本指になったときの間隔(fit を外すかの判定用) */
+  d0: number;
+  /** 始まったときに fit だったか(手のひらとして戻すときに戻す) */
+  fit0: boolean; vx: number; vy: number; lastT: number; v0: View;
   /** まだ紙を動かしていない間の、指の出発点(動き出したら null) */
   rest: GState | null;
 }
@@ -530,9 +540,10 @@ export class Controller {
   }
 
   private gestureReset(): void {
-    if (!this.gesture) this.gesture = { t0: performance.now(), max: 0, prev: this.gState(), vx: 0, vy: 0, lastT: performance.now(), v0: { ...this.r.view }, rest: this.gState() };
+    if (!this.gesture) this.gesture = { t0: performance.now(), max: 0, prev: this.gState(), d0: 0, fit0: this.r.fit, vx: 0, vy: 0, lastT: performance.now(), v0: { ...this.r.view }, rest: this.gState() };
     this.gesture.max = Math.max(this.gesture.max, this.touches.size);
     this.gesture.prev = this.gState();
+    this.gesture.d0 = this.gesture.prev.d;
     if (this.gesture.rest) this.gesture.rest = this.gesture.prev;
   }
 
@@ -540,7 +551,7 @@ export class Controller {
     const g = this.gesture;
     if (!g) return;
     const n = this.gState(), p = g.prev, v = this.r.view, now = performance.now();
-    if (n.n !== p.n) { g.prev = n; if (g.rest) g.rest = n; return; }
+    if (n.n !== p.n) { g.prev = n; g.d0 = n.d; if (g.rest) g.rest = n; return; }
     if (g.rest) {
       // 出発点から PAN_SLOP_PX 離れるまでは揺れとみなして捨てる。動き出すときは今の位置を基準にする(溜まった分だけ跳ばない)
       const o = g.rest, far = Math.hypot(n.c[0] - o.c[0], n.c[1] - o.c[1]) + Math.abs(n.d - o.d);
@@ -548,9 +559,12 @@ export class Controller {
       if (far >= PAN_SLOP_PX) g.rest = null;
       return;
     }
-    const dx = n.c[0] - p.c[0], dy = n.c[1] - p.c[1];
+    const r = this.r;
+    if (r.fit && n.n === 2 && g.d0 > 0 && Math.abs(Math.log(n.d / g.d0)) >= FIT_PINCH) r.fit = false;
+    // fit の間は縦にだけ動かす(横にずれない)
+    const dx = r.fit ? 0 : n.c[0] - p.c[0], dy = n.c[1] - p.c[1];
     v.x += dx; v.y += dy;
-    if (n.n === 2 && p.d > 0) {
+    if (!r.fit && n.n === 2 && p.d > 0) {
       const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (v.s * n.d) / p.d)), f = ns / v.s;
       v.x = n.c[0] - (n.c[0] - v.x) * f; v.y = n.c[1] - (n.c[1] - v.y) * f; v.s = ns;
     }
@@ -582,7 +596,7 @@ export class Controller {
   private cancelGesture(revert = false): void {
     for (const id of this.touches.keys()) this.ignored.add(id);
     this.touches.clear();
-    if (revert && this.gesture) Object.assign(this.r.view, this.gesture.v0);
+    if (revert && this.gesture) { Object.assign(this.r.view, this.gesture.v0); this.r.fit = this.gesture.fit0; }
     this.gesture = null;
     this.r.settle();
   }
@@ -615,9 +629,10 @@ export class Controller {
     e.preventDefault();
     const v = this.r.view, [sx, sy] = this.pt(e);
     if (e.ctrlKey) {
+      this.r.fit = false; // トラックパッドのピンチ
       const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s * Math.exp(-e.deltaY * 0.01))), f = ns / v.s;
       v.x = sx - (sx - v.x) * f; v.y = sy - (sy - v.y) * f; v.s = ns;
-    } else { v.x -= e.deltaX; v.y -= e.deltaY; }
+    } else { if (!this.r.fit) v.x -= e.deltaX; v.y -= e.deltaY; }
     this.r.clampView();
     this.r.request();
     clearTimeout(this.wheelTimer);

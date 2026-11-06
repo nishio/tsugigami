@@ -46,7 +46,7 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 1366 });
   await page.goto('./');
   await page.waitForFunction(() => (window as any).tsugigami?.doc);
-  await page.evaluate(() => { const T = (window as any).tsugigami; T.r.view = { s: 1, x: 115, y: 0 }; T.r.clampView(); T.r.settle(); });
+  await page.evaluate(() => { const T = (window as any).tsugigami; T.r.fit = false; T.r.view = { s: 1, x: 115, y: 0 }; T.r.clampView(); T.r.settle(); });
 });
 
 test('手だけを置いて転がしても(rest-only、158 タッチ)、紙は動かず取り消しも起きない', async ({ page }) => {
@@ -102,4 +102,23 @@ test('手を置いて線を書いて離す(hand-write、5 本)で、線は 5 本
   console.log('hand-write', JSON.stringify(r));
   expect(r.after.strokes).toBe(5);
   expect(r.after.s).toBe(r.before.s); expect(r.after.x).toBe(r.before.x); expect(r.after.y).toBe(r.before.y);
+});
+
+// fit(紙の幅 = 画面幅、2026-11-06 から通常の表示)のままで
+test('fit のまま: 手だけを置いても(rest-only)紙は動かず、fit も外れない', async ({ page }) => {
+  await page.evaluate(() => (window as any).tsugigami.r.fitView());
+  const r = await replay(page, load('rest-only'));
+  const fit = await page.evaluate(() => (window as any).tsugigami.r.fit);
+  console.log('fit rest-only', JSON.stringify(r), fit);
+  expect(fit).toBe(true);
+  expect(r.after.s).toBe(r.before.s); expect(r.after.x).toBe(r.before.x); expect(r.after.y).toBe(r.before.y);
+});
+
+test('fit のまま: わざとのピンチ(pinch)では fit が外れて倍率が変わる', async ({ page }) => {
+  await page.evaluate(() => (window as any).tsugigami.r.fitView());
+  const r = await replay(page, load('pinch'));
+  const fit = await page.evaluate(() => (window as any).tsugigami.r.fit);
+  console.log('fit pinch', JSON.stringify(r), fit);
+  expect(fit).toBe(false);
+  expect(Math.abs(r.after.s - r.before.s)).toBeGreaterThan(0.2);
 });

@@ -14,7 +14,7 @@ test('ライブ層とタイルを撮る', async ({ page, browserName }) => {
   await page.goto('./');
   await page.waitForFunction(() => !!(window as any).tsugigami?.doc);
   const pad = 20;
-  await page.evaluate(({ s, x0, y0 }) => { const r = (window as any).tsugigami.r; r.view = { s, x: -x0 * s, y: -y0 * s }; r.settle(); }, { s, x0: x0 - pad, y0: y0 - pad });
+  await page.evaluate(({ s, x0, y0 }) => { const r = (window as any).tsugigami.r; r.fit = false; r.view = { s, x: -x0 * s, y: -y0 * s }; r.settle(); }, { s, x0: x0 - pad, y0: y0 - pad });
   await page.waitForTimeout(500);
   const st = (await page.locator('#stage').boundingBox())!;
   // 表示位置は clampView で動くことがあるので、実際の view から切り出す場所を決める

@@ -94,11 +94,9 @@ async function main(): Promise<void> {
     if (!note) return;
     doc = new Doc(note, await store.strokesOf(id), sink);
     r.setDoc(doc);
+    // 開いたときは fit(紙の幅 = 画面幅)。縦の位置だけ前回の続きから(倍率と横の位置は保存してあっても使わない)
     const v = await store.getMeta<SavedView>('view:' + id);
-    if (v) {
-      r.view.s = v.s; r.view.x = r.W / 2 - v.cx * v.s; r.view.y = -v.top * v.s;
-      r.clampView(); r.settle();
-    } else r.fitView();
+    r.fitView(v?.top);
     await store.setMeta('lastNote', id);
     renderTitle();
     syncTools();

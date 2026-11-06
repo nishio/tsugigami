@@ -185,6 +185,12 @@ export class Renderer {
   readonly lctx: CanvasRenderingContext2D;
   readonly wctx: CanvasRenderingContext2D;
   view: View = { x: 0, y: 0, s: 1 };
+  /**
+   * fit: 1 枚目の紙(A4)の横幅を画面幅に合わせた、通常の表示。この間は倍率と横の位置を固定し、
+   * 縦にだけ動かす(nishio「通常時はそれ、この状態では縦スクロールで横にずれないこと」2026-11-06)。
+   * ピンチで倍率を変えると外れ、fitView で戻る。
+   */
+  fit = true;
   /** タイルを焼く倍率。ズーム中は据え置き、指を離したら view.s に合わせる */
   rs = 1;
   dpr = 1;
@@ -226,7 +232,7 @@ export class Renderer {
   }
 
   resize(): void {
-    const oldW = this.W, wasFit = oldW > 0 && Math.abs(this.view.s - this.fitScale()) < 0.02;
+    const oldW = this.W;
     const [, top] = this.toWorld(0, 0);
     this.dpr = window.devicePixelRatio || 1;
     this.W = this.stage.clientWidth; this.H = this.stage.clientHeight;
@@ -234,10 +240,10 @@ export class Renderer {
       c.width = Math.round(this.W * this.dpr); c.height = Math.round(this.H * this.dpr);
       c.style.width = this.W + 'px'; c.style.height = this.H + 'px';
     }
-    // 回転や Split View で幅が変わったとき、紙が画面幅に合っていたなら合わせ直す(見ていた位置は保つ)
-    if (wasFit && oldW !== this.W) {
+    // 回転や Split View で幅が変わったとき、fit なら合わせ直す(見ていた位置は保つ)
+    if (this.fit && oldW > 0 && oldW !== this.W) {
       const s = this.fitScale();
-      this.view = { s, x: (this.W - PAGE_W * s) / 2, y: -top * s };
+      this.view = { s, x: 0, y: -top * s };
     }
     this.clampView();
     this.settle();
@@ -289,15 +295,16 @@ export class Renderer {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   }
 
-  /** 1 枚目の紙の幅を画面幅に合わせる倍率 */
+  /** 1 枚目の紙(A4)の幅を画面幅に合わせる倍率。右へ継いだ紙は画面の右へはみ出す */
   fitScale(): number {
-    // 左右に「紙を継ぎ足す」ボタンが収まる余白を残す
-    return Math.min(2, Math.max(0.3, (this.W - 76) / PAGE_W));
+    return Math.min(8, Math.max(0.25, this.W / PAGE_W));
   }
 
-  fitView(top = 0): void {
+  /** fit にする。top は画面の上端に来るノートの y(省略時はノートの先頭) */
+  fitView(top?: number): void {
     const s = this.fitScale();
-    this.view = { s, x: (this.W - PAGE_W * s) / 2, y: 12 - top * s };
+    this.fit = true;
+    this.view = { s, x: 0, y: top == null ? 12 : -top * s };
     this.clampView();
     this.settle();
   }
@@ -308,7 +315,9 @@ export class Renderer {
     if (!doc) return;
     const v = this.view, b = noteBounds(doc.note), m = 40;
     const cw = (b[2] - b[0]) * v.s, ch = (b[3] - b[1]) * v.s;
-    if (cw + 2 * m <= this.W) v.x = (this.W - cw) / 2;
+    // fit の間、横の位置は 1 枚目の紙が画面幅に収まる位置に固定(settle で倍率を画素に揃えた端数は左右に振り分ける)
+    if (this.fit) v.x = Math.round(((this.W - PAGE_W * v.s) / 2) * this.dpr) / this.dpr;
+    else if (cw + 2 * m <= this.W) v.x = (this.W - cw) / 2;
     else v.x = Math.min(m, Math.max(this.W - cw - m, v.x));
     v.y = Math.min(m + PAGE_GAP, Math.max(Math.min(m, this.H - ch - m), v.y));
   }
@@ -316,7 +325,8 @@ export class Renderer {
   /** ズームが落ち着いたら、タイルを焼く倍率を表示倍率に揃え、画素の境目に位置を合わせる */
   settle(): void {
     const v = this.view, d = this.dpr, k = levelFor(v.s, d), tw = TILE / 2 ** k;
-    const rs = Math.round(tw * v.s * d) / (tw * d), f = rs / v.s, cx = this.W / 2, cy = this.H / 2;
+    // fit の間は切り捨てて、紙が画面幅からはみ出さないようにする
+    const rs = (this.fit ? Math.floor(tw * v.s * d + 1e-6) : Math.round(tw * v.s * d)) / (tw * d), f = rs / v.s, cx = this.W / 2, cy = this.H / 2;
     v.x = cx - (cx - v.x) * f; v.y = cy - (cy - v.y) * f;
     v.s = rs; this.rs = rs;
     this.clampView();

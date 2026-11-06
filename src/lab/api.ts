@@ -110,6 +110,7 @@ export function makeLab(app: TsugigamiApp, stage: HTMLElement, ui: LabUI, out: O
 
     /** 表示位置と倍率。x0, y0 がステージの左上に来る */
     async view(x0: number, y0: number, s = 1) {
+      r.fit = false;
       r.view = { s, x: -x0 * s, y: -y0 * s };
       r.clampView(); r.settle();
       await frames(2);

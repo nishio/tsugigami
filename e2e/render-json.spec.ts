@@ -25,6 +25,7 @@ test('JSON を本体の描画で描いて撮る', async ({ page, browserName }) 
   const pad = 20;
   await page.evaluate(({ s, x0, y0 }) => {
     const r = (window as any).tsugigami.r;
+    r.fit = false;
     r.view = { s, x: -x0 * s, y: -y0 * s };
     r.settle();
   }, { s, x0: x0 - pad, y0: y0 - pad });
