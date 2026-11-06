@@ -127,7 +127,7 @@ test('離したイベントを取りこぼしても、次にペンを置けば�
   expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(2);
 });
 
-// 本物の 2 本指タップは 41〜75ms 触れている(raw/2026-10-30_lab_taps)。0ms のタップは手の触れとみなされる
+// 本物の 2 本指タップは 41〜75ms 触れている(raw/2026-10-30_lab_taps)
 const twoFingerTap = (page: import('@playwright/test').Page) => page.evaluate(async () => {
   const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
   const ev = (n: string, id: number, x: number, b: number) => st.dispatchEvent(new PointerEvent(n, { bubbles: true, pointerId: id, pointerType: 'touch', clientX: r.left + x, clientY: r.top + 500, buttons: b }));
@@ -141,19 +141,17 @@ const penLine = (page: import('@playwright/test').Page, y: number) => page.evalu
   ev('pointerdown', 100, 1); ev('pointermove', 250, 1); ev('pointerup', 250, 0);
 }, y);
 
-test('2 本指タップで取り消す。直後にペンが触れたら手のひらとみなして取り消さない', async ({ page }) => {
+// 指のタップのジェスチャーは外した(手のひらで取り消されて不快、raw/2026-11-06_iPadで使った感想_パームのundo_fit_アイコン_題名.md)
+test('2 本指タップでは取り消さない(取り消しはボタンと ⌘Z だけ)', async ({ page }) => {
   await page.goto('./');
   await page.waitForFunction(() => (window as any).tsugigami?.doc);
   await penLine(page, 100);
   await page.waitForTimeout(600); // 手のひら判定の時間を過ぎてから
   await twoFingerTap(page);
-  await expect.poll(() => page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(0);
-  await penLine(page, 150);
-  await page.waitForTimeout(600);
-  await twoFingerTap(page);
-  await penLine(page, 200); // すぐにペン
-  await page.waitForTimeout(400);
-  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(2);
+  await page.waitForTimeout(400); // 以前の取り消しの猶予(250ms)を過ぎても
+  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(1);
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await page.evaluate(() => (window as any).tsugigami.doc.strokes.size)).toBe(0);
 });
 
 test('手をついたときの小さな揺れでは紙が動かず、直後にペンが来たら動いた分を戻す', async ({ page }) => {

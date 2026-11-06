@@ -36,7 +36,7 @@ async function replay(page: Page, events: Ev[], speed = 1) {
         clientX: b.left + e.x, clientY: b.top + e.y, buttons: e.buttons, pressure: e.p,
       }));
     }
-    await new Promise(f => setTimeout(f, 400)); // タップの猶予(250ms)を過ぎるまで
+    await new Promise(f => setTimeout(f, 400)); // 遅れて動くもの(慣性など)が落ち着くまで
     const after = { ...T.r.view, strokes: T.doc.strokes.size, palm: T.c.stats.palm };
     return { before, after };
   }, { events, speed });
@@ -56,7 +56,7 @@ test('手だけを置いて転がしても(rest-only、158 タッチ)、紙は�
   expect(r.after.s).toBe(r.before.s);
   expect(r.after.x).toBe(r.before.x);
   expect(r.after.y).toBe(r.before.y);
-  // 記録の先頭(0.00 秒)の 2 点・17ms の触れが 2 本指タップに見えないこと(TAP_MIN_MS)
+  // 線が消えない(タップのジェスチャーは 2026-11-06 に外した。以前は先頭の 2 点・17ms の触れが取り消しに見えた)
   expect(r.after.strokes).toBe(1);
 });
 
@@ -82,11 +82,11 @@ test('議事録を書いている間(minutes、ペン 260 本)の数少ないタ
   expect(r.after.y).toBe(r.before.y);
 });
 
-test('わざとの 2 本指タップ(tap2、15 回)で取り消しが働く', async ({ page }) => {
+test('わざとの 2 本指タップ(tap2、15 回)でも線は消えない(タップのジェスチャーは外した)', async ({ page }) => {
   await penLines(page, 3);
   const r = await replay(page, load('tap2', 'taps'));
   console.log('tap2', JSON.stringify(r));
-  expect(r.after.strokes).toBe(0);
+  expect(r.after.strokes).toBe(3);
 });
 
 test('手を置いてすぐ離す(hand-touch)では、紙は動かず線も消えない', async ({ page }) => {
