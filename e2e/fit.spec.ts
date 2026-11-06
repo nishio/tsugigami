@@ -65,7 +65,9 @@ test('ピンチで倍率を変えると fit が外れ、自由に動かせる', 
 test('開き直すと fit に戻り、縦の位置は前回の続き', async ({ page }) => {
   await page.evaluate(() => { const { r } = (window as any).tsugigami; r.fit = false; r.view = { s: 2.5, x: -300, y: -2500 }; r.clampView(); r.settle(); });
   const top = await page.evaluate(() => (window as any).tsugigami.r.toWorld(0, 0)[1]);
-  await page.waitForTimeout(800); // 表示位置の保存(500ms)を待つ
+  // 表示位置の保存(描画の後 500ms。ヘッドレスの WebKit では描画が遅れることがあるので、決まった時間ではなく保存を待つ)
+  await expect.poll(() => page.evaluate(async () => { const T = (window as any).tsugigami; return (await T.store.getMeta('view:' + T.doc.note.id))?.top; }), { timeout: 10000 })
+    .toBeCloseTo(top, 0);
   await page.reload();
   await page.waitForFunction(() => (window as any).tsugigami?.doc);
   const v = await view(page);
