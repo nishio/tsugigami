@@ -60,6 +60,14 @@
   <main id="stage"></main>
   <div id="pageButtons"><div id="scroller" aria-hidden="true"><span id="pageLabel" hidden></span></div></div>
 
+  <!-- 紙の左のメニュー(ページごとのつまみから開く) -->
+  <div id="pageMenu" role="menu" aria-label="ページ" hidden>
+    <button type="button" role="menuitem" data-act="widen">右に紙を継ぐ</button>
+    <button type="button" role="menuitem" data-act="narrow">右の紙を外す</button>
+    <button type="button" role="menuitem" data-act="right">右の紙を見る</button>
+    <button type="button" role="menuitem" data-act="fit">fit(紙の幅 = 画面の幅)</button>
+  </div>
+
   <div id="selMenu" role="toolbar" aria-label="選択した線" hidden>
     <button type="button" data-act="copy">コピー</button>
     <button type="button" data-act="cut">切り取り</button>

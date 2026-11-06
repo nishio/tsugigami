@@ -38,7 +38,7 @@ Notability の起動時にクラウドサービスの案内が出て邪魔で、
 | 外への写し | GitHub の repo への自動バックアップと復元 | [github.ts](../src/github.ts)、[autobackup.ts](../src/autobackup.ts) |
 | 描画 | タイルキャッシュ、紙と方眼、ストロークの描き方 | [render.ts](../src/render.ts) |
 | 入力 | ペン・指・手のひら判定・選択と変形 | [controller.ts](../src/controller.ts) |
-| 画面 | 道具バー、ノート一覧、選択メニュー、継ぎ足しボタン | [main.ts](../src/main.ts) |
+| 画面 | 道具バー、ノート一覧、選択メニュー、紙の左のメニュー(継ぎ足し・fit) | [main.ts](../src/main.ts) |
 | 実験機(lab) | `?lab=1` のときだけ動く。非公開 repo の待ち行列からスクリプトを拾って実行し、結果を commit する | [lab/api.ts](../src/lab/api.ts)、[lab/index.ts](../src/lab/index.ts)、[lab/repo.ts](../src/lab/repo.ts) |
 
 描画の考え方は [描画の層とタイル](concepts/描画の層とタイル.md)、保存の考え方は [線ごとに IndexedDB へ保存](decisions/2026-10-27_線ごとにIndexedDBへ保存.md)。

@@ -80,11 +80,21 @@ button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accen
   position: fixed; left: 0; right: 0; bottom: 0; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px));
   pointer-events: none; overflow: hidden; z-index: 5;
 }
-.page-btn {
-  position: absolute; pointer-events: auto; width: 24px; min-width: 24px; height: 52px; padding: 0;
-  border-radius: 8px; background: rgba(255, 255, 255, .85); border: 1px solid var(--line); color: var(--muted);
-  font-size: 18px; line-height: 1;
+/* 紙の左のつまみ。fit の間は紙の左の余白に重なるので、細く薄くする */
+.page-handle {
+  position: absolute; pointer-events: auto; width: 22px; min-width: 22px; height: 56px; padding: 0;
+  border-radius: 0 8px 8px 0; background: rgba(246, 245, 241, .82); border: 1px solid var(--line); border-left: 0;
+  color: var(--muted); flex-direction: column; gap: 2px; font-size: 18px; line-height: 1;
 }
+.page-handle small { font-size: 10px; line-height: 1; letter-spacing: -.02em; }
+.page-handle[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+
+#pageMenu {
+  position: fixed; z-index: 8; display: flex; flex-direction: column; padding: 4px; min-width: 200px;
+  background: #2b2f38; border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+}
+#pageMenu button { color: #fff; height: 42px; font-size: 15px; justify-content: flex-start; }
+#pageMenu button + button { border-top: 1px solid rgba(255, 255, 255, .14); border-radius: 0; }
 
 #scroller {
   position: absolute; right: env(safe-area-inset-right, 0px); width: 12px; min-height: 44px;

@@ -110,11 +110,59 @@ test('ペンの直後のタッチは手のひらとして無視し、指 1 本�
   expect(await count(page)).toBe(1);
 });
 
-test('紙を右へ継ぎ足し、取り消せる', async ({ page }) => {
-  await page.locator('.page-btn', { hasText: '+' }).first().click();
-  expect(await page.evaluate(() => (window as any).tsugigami.doc.note.pages[0].w)).toBe(2);
+const pageW = (page: Page, i = 0) => page.evaluate(i => (window as any).tsugigami.doc.note.pages[i].w as number, i);
+const viewOf = (page: Page) => page.evaluate(() => { const { r } = (window as any).tsugigami; return { ...r.view, fit: r.fit, W: r.W }; });
+
+test('紙の左のメニューから右へ紙を継ぎ、取り消せる', async ({ page }) => {
+  const handle = page.locator('.page-handle[data-page="0"]');
+  await expect(handle).toBeVisible();
+  // fit の間、つまみは画面の左端にある
+  expect((await handle.boundingBox())!.x).toBeLessThan(2);
+  await handle.click();
+  await expect(page.locator('#pageMenu')).toBeVisible();
+  await expect(page.locator('#pageMenu [data-act="fit"]')).toBeDisabled(); // もう fit
+  await expect(page.locator('#pageMenu [data-act="narrow"]')).toBeHidden();
+  await page.locator('#pageMenu [data-act="widen"]').click();
+  await expect(page.locator('#pageMenu')).toBeHidden();
+  expect(await pageW(page)).toBe(2);
+  // 継いだ紙が見えるように横へ動き、fit は外れる
+  const v = await viewOf(page);
+  expect(v.fit).toBe(false);
+  expect(Math.abs(794 * 2 * v.s + v.x - v.W)).toBeLessThan(2);
+  await expect(handle).toContainText('2枚');
   await page.click('#undo');
-  expect(await page.evaluate(() => (window as any).tsugigami.doc.note.pages[0].w)).toBe(1);
+  expect(await pageW(page)).toBe(1);
+});
+
+test('メニューの fit で、紙の幅 = 画面の幅に戻る。白紙の右の紙は外せる', async ({ page }) => {
+  const handle = page.locator('.page-handle[data-page="0"]');
+  await handle.click();
+  await page.locator('#pageMenu [data-act="widen"]').click();
+  // 継いだ紙の上で書くと、外せなくなる
+  await handle.click();
+  await expect(page.locator('#pageMenu [data-act="narrow"]')).toBeVisible();
+  await expect(page.locator('#pageMenu [data-act="right"]')).toBeVisible();
+  await page.locator('#pageMenu [data-act="fit"]').click();
+  const v = await viewOf(page);
+  expect(v.fit).toBe(true);
+  expect(Math.abs(794 * v.s - v.W)).toBeLessThan(2);
+  expect(Math.abs(v.x)).toBeLessThan(1);
+  await expect(handle).toContainText('2枚');
+  // 右の紙を見る → fit が外れて継いだ紙が見える
+  await handle.click();
+  await page.locator('#pageMenu [data-act="right"]').click();
+  expect((await viewOf(page)).fit).toBe(false);
+  await handle.click();
+  await page.locator('#pageMenu [data-act="narrow"]').click();
+  expect(await pageW(page)).toBe(1);
+});
+
+test('紙の左のメニューは、外に触れると閉じる', async ({ page }) => {
+  await page.locator('.page-handle[data-page="0"]').click();
+  await expect(page.locator('#pageMenu')).toBeVisible();
+  await stroke(page, line(300, 300, 400, 300));
+  await expect(page.locator('#pageMenu')).toBeHidden();
+  expect(await count(page)).toBe(1);
 });
 
 test('ノートを作り、名前を変え、ゴミ箱から戻せる', async ({ page }) => {

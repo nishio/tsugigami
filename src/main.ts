@@ -89,6 +89,7 @@ async function main(): Promise<void> {
   async function openNote(id: string): Promise<void> {
     c.reset(); // 書きかけがあれば元のノートに確定させてから切り替える
     c.clearSelection();
+    closePageMenu();
     flushView();
     const note = await store.getNote(id);
     if (!note) return;
@@ -206,18 +207,72 @@ async function main(): Promise<void> {
     else if (act === 'delete') c.deleteSelection();
   });
 
-  // ---- 紙を右へ継ぎ足すボタン ----
-  const pageLayer = $('#pageButtons');
+  // ---- 紙の左のメニュー(右へ紙を継ぐ・外す、fit)----
+  // ページごとに紙の左につまみを出し、押すとメニューを開く(nishio「「右にページ追加」と「fit」を紙の左側のメニューにする」2026-11-06)
+  const pageLayer = $('#pageButtons'), pageMenu = $('#pageMenu');
+  const HANDLE_W = 22, HANDLE_H = 56;
   const pool: HTMLButtonElement[] = [];
-  const pageButton = (i: number): HTMLButtonElement => {
-    let b = pool[i];
+  let menuPage = -1;
+  const pageHandle = (k: number): HTMLButtonElement => {
+    let b = pool[k];
     if (!b) {
-      b = pool[i] = document.createElement('button');
-      b.type = 'button'; b.className = 'page-btn';
+      b = pool[k] = document.createElement('button');
+      b.type = 'button'; b.className = 'page-handle';
+      b.setAttribute('aria-haspopup', 'menu');
+      b.onclick = () => (menuPage === Number(b.dataset.page) ? closePageMenu() : openPageMenu(Number(b.dataset.page)));
       pageLayer.append(b);
     }
     return b;
   };
+  /** 継いだ一番右の紙が白紙か(白紙なら外せる) */
+  const rightBlank = (i: number): boolean => {
+    if (!doc || doc.note.pages[i].w < 2) return false;
+    const pr = pageRect(doc.note, i);
+    return !doc.query([PAGE_W * (doc.note.pages[i].w - 1), pr[1], pr[2], pr[3]]).length;
+  };
+  function openPageMenu(i: number): void {
+    if (!doc) return;
+    c.clearSelection();
+    menuPage = i;
+    const w = doc.note.pages[i].w, act = (a: string) => pageMenu.querySelector<HTMLButtonElement>(`[data-act="${a}"]`)!;
+    act('narrow').hidden = !rightBlank(i);
+    act('right').hidden = w < 2;
+    act('fit').disabled = r.fit;
+    pageMenu.hidden = false;
+    r.onViewChange(); // つまみの印とメニューの位置
+  }
+  function closePageMenu(): void {
+    if (menuPage < 0) return;
+    menuPage = -1;
+    pageMenu.hidden = true;
+    r.onViewChange();
+  }
+  /** i ページ目の一番右の紙が画面に入るように、横へ動かす(倍率は保つので fit は外れる) */
+  const showRight = (i: number) => {
+    if (!doc) return;
+    const v = r.view, right = pageRect(doc.note, i)[2];
+    if (right * v.s + v.x <= r.W + 1) return;
+    r.fit = false;
+    v.x = r.W - right * v.s;
+    r.clampView(); r.settle();
+  };
+  pageMenu.addEventListener('click', e => {
+    const a = (e.target as HTMLElement).closest('button')?.dataset.act, i = menuPage;
+    if (!a || i < 0 || !doc) return;
+    closePageMenu();
+    if (a === 'widen') { resizePage(i, 1); showRight(i); }
+    else if (a === 'narrow') resizePage(i, -1);
+    else if (a === 'right') showRight(i);
+    else if (a === 'fit') {
+      // 画面の真ん中に見えていた所を、真ん中に残したまま fit にする
+      const [, cy] = r.toWorld(0, r.H / 2);
+      r.fitView(cy - r.H / 2 / r.fitScale());
+    }
+  });
+  // メニューの外に触れたら閉じる(ペンで書き始めたときも)
+  document.addEventListener('pointerdown', e => {
+    if (menuPage >= 0 && !(e.target instanceof Element && e.target.closest('#pageMenu, .page-handle'))) closePageMenu();
+  }, true);
   const resizePage = (i: number, dw: number) => {
     if (!doc) return;
     const before = doc.note.pages.map(p => ({ ...p }));
@@ -236,30 +291,34 @@ async function main(): Promise<void> {
   r.onViewChange = () => {
     clearTimeout(viewTimer);
     viewTimer = window.setTimeout(flushView, 500);
-    let n = 0;
+    let n = 0, menuAt: [number, number] | null = null;
     if (doc) {
       for (let i = 0; i < doc.note.pages.length; i++) {
         const pr = pageRect(doc.note, i);
-        const [x1, y0] = r.toScreen(pr[2], pr[1]), [, y1] = r.toScreen(pr[2], pr[3]);
-        if (y1 < 0 || y0 > r.H || x1 > r.W + 4 || x1 < -30) continue;
-        const cy = (Math.max(0, y0) + Math.min(r.H, y1)) / 2;
-        const w = doc.note.pages[i].w;
-        const plus = pageButton(n++);
-        plus.textContent = '+'; plus.setAttribute('aria-label', `${i + 1} ページ目を右に広げる`);
-        plus.style.transform = `translate(${x1 + 2}px, ${cy - 56}px)`;
-        plus.hidden = false;
-        plus.onclick = () => resizePage(i, 1);
-        // 継ぎ足した一番右の紙が白紙なら、取り除ける
-        if (w > 1 && !doc.query([PAGE_W * (w - 1), pr[1], pr[2], pr[3]]).length) {
-          const minus = pageButton(n++);
-          minus.textContent = '−'; minus.setAttribute('aria-label', `${i + 1} ページ目の右の紙を外す`);
-          minus.style.transform = `translate(${x1 + 2}px, ${cy + 4}px)`;
-          minus.hidden = false;
-          minus.onclick = () => resizePage(i, -1);
-        }
+        const [x0, y0] = r.toScreen(pr[0], pr[1]), [, y1] = r.toScreen(pr[0], pr[3]);
+        if (y1 < 0 || y0 > r.H || x0 > r.W - HANDLE_W) continue;
+        // 見えている部分の縦の真ん中。紙の左に机が見えていればその上、見えていなければ画面の左端(紙の余白に重なる)
+        const cy = (Math.max(0, y0) + Math.min(r.H, y1)) / 2, hx = Math.max(0, x0 - HANDLE_W);
+        const w = doc.note.pages[i].w, b = pageHandle(n++);
+        b.dataset.page = String(i);
+        // 右へ継いだ紙は fit では画面の外にあるので、つまみに枚数を出して気づけるようにする
+        b.innerHTML = w > 1 ? `⋮<small>${w}枚</small>` : '⋮';
+        b.setAttribute('aria-label', `${i + 1} ページ目のメニュー${w > 1 ? `(横に ${w} 枚)` : ''}`);
+        b.setAttribute('aria-expanded', String(menuPage === i));
+        b.style.transform = `translate(${hx}px, ${cy - HANDLE_H / 2}px)`;
+        b.hidden = false;
+        if (menuPage === i) menuAt = [hx + HANDLE_W, cy];
       }
     }
     for (let k = n; k < pool.length; k++) pool[k].hidden = true;
+    if (menuPage >= 0) {
+      if (!menuAt) closePageMenu();
+      else {
+        const top0 = stageTop(), mh = pageMenu.offsetHeight;
+        pageMenu.style.left = menuAt[0] + 6 + 'px';
+        pageMenu.style.top = Math.max(top0 + 6, Math.min(window.innerHeight - mh - 6, top0 + menuAt[1] - mh / 2)) + 'px';
+      }
+    }
     placeScroller();
   };
 
@@ -529,7 +588,7 @@ async function main(): Promise<void> {
     else if (mod && k === 'x') c.cut();
     else if (mod && k === 'v') c.paste();
     else if ((k === 'backspace' || k === 'delete') && c.sel) c.deleteSelection();
-    else if (k === 'escape') c.clearSelection();
+    else if (k === 'escape') { c.clearSelection(); closePageMenu(); }
   });
 
   // ページ自体のピンチズームを止める
