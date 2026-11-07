@@ -2,7 +2,7 @@
 title: Index
 type: meta
 created: 2026-10-27
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # tsugigami 開発 wiki
@@ -72,6 +72,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 - [2026-10-27 Kozaneba 作り直しでの tsugigami](../raw/2026-10-27_Kozaneba作り直しでのtsugigami.md)
 - [2026-10-28 線がガタガタしている](../raw/2026-10-28_線がガタガタ.md)
 - [2026-10-28 issue #2 と書き出した JSON](../raw/2026-10-28_issue2_線がガタガタ.md)(画像 [png](../raw/2026-10-28_issue2_線がガタガタ.png)、[json](../raw/tsugigami-20261028-1519.json))
+- [2026-10-28 issue #3 描き始めのパームリジェクション](../raw/2026-10-28_issue3_描き始めのパームリジェクション.md)(2026-11-07 に取り込み)
 - [2026-10-28 AI が Safari で実験できるようにしたい](../raw/2026-10-28_AIがSafariで実験.md)
 - [2026-10-28 両方のアプリでゆっくり直線を引いた比較](../raw/2026-10-28_issue2_直線の比較.md)([tsugigami](../raw/2026-10-28_issue2_直線_tsugigami.png)、[Notability](../raw/2026-10-28_issue2_直線_Notability.png)、[json](../raw/tsugigami-20261028-1535.json))
 - [2026-10-30 議事録で使った感想: パームの後判定での拡大縮小のずれ](../raw/2026-10-30_議事録で使った感想_パーム後判定の拡縮ずれ.md)
