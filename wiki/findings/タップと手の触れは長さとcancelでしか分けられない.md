@@ -2,7 +2,7 @@
 title: 2 本指タップと手の触れは、長さと pointercancel でしか分けられない
 type: finding
 created: 2026-10-31
-updated: 2026-11-06
+updated: 2026-11-07
 confidence: 実機で確認
 sources:
   - raw/2026-10-30_lab_taps.md
@@ -37,6 +37,7 @@ sources:
 - 3 本指タップのやり直しは復活させない。やり直しは画面のボタンと ⌘⇧Z。
 - **線が勝手に消えることがまだあれば、次の手は 2 本指タップの取り消し自体をやめる**こと。要件には無く、ボタンと ⌘Z が残る。
 - → 2026-11-06、nishio「palmでundoされて不快、じぇすちゃーいらん」。タップのジェスチャーを外した([判断](../decisions/2026-11-06_指のタップのジェスチャーを外す.md))。この節の `TAP_MIN_MS` はもうコードに無い。分け方の事実(長さと cancel でしか分けられない)は、今後タップを足したくなったときの材料として残す。
+- (2026-11-07 追記)再生テストの向きも変わった。上の「タップ 15 回では取り消しが働き」は 2026-10-30 の時点のことで、今の `e2e/palm-replay.spec.ts` は、2 本指タップ(tap2、15 回)を流しても線が消えないことを確かめている。
 
 ## 読むときの注意
 
@@ -48,4 +49,4 @@ sources:
 - [raw/2026-10-30_lab_taps.md](../../raw/2026-10-30_lab_taps.md)、[記録](../../raw/2026-10-30_lab_taps/)、[raw/2026-10-30_lab_palm-rest.md](../../raw/2026-10-30_lab_palm-rest.md)
 - [raw/2026-10-31_Wikiにfile_back.md](../../raw/2026-10-31_Wikiにfile_back.md)
 - [tools/palm-features.mjs](../../tools/palm-features.mjs)、[e2e/palm-replay.spec.ts](../../e2e/palm-replay.spec.ts)
-- [src/controller.ts](../../src/controller.ts)(`TAP_MIN_MS`)、commit 8055662
+- [src/controller.ts](../../src/controller.ts)(`TAP_MIN_MS`)、commit 8055662(`TAP_MIN_MS` はこの commit の時点のもの。2026-11-06 の 6ac3c3c で消えた)
