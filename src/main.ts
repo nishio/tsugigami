@@ -1,6 +1,8 @@
 // 起動と画面の部品(道具バー、ノート一覧、選択メニュー、紙の継ぎ足しボタン)。
 import './style.css';
 import { AutoBackup } from './autobackup';
+import type { GitHubConfig } from './github';
+import { LAB_OFFER_KEY, readLabGitHub } from './labconfig';
 import { Controller } from './controller';
 import { Doc, type DocSink } from './doc';
 import { type Note, PAGE_W, newNote, noteBounds, pageIndexAt, pageRect } from './model';
@@ -51,6 +53,8 @@ async function main(): Promise<void> {
     toast('保存に失敗しました。ノート一覧から書き出してバックアップを取ってください: ' + ((e as Error)?.message ?? String(e)), true);
   };
   // ---- GitHub への自動バックアップ ----
+  /** lab の保存領域にある GitHub の設定(本体が未設定のときだけ読む。下の useLabConfig) */
+  let labCfg: GitHubConfig | null = null;
   const auto = new AutoBackup(store, {
     listNotes: () => store.listNotes(),
     strokesOf: id => (doc?.note.id === id ? Promise.resolve([...doc.strokes.values()]) : store.strokesOf(id)),
@@ -467,6 +471,8 @@ async function main(): Promise<void> {
   // ---- バックアップ ----
   function renderGh(): void {
     const s = auto.status, info = $('#ghInfo');
+    $('#ghUnset').hidden = s.configured;
+    $('#ghUseLab').hidden = s.configured || !labCfg;
     info.classList.toggle('error', !!s.error);
     $('#ghActions').hidden = !s.configured;
     if (!s.configured) {
@@ -493,6 +499,42 @@ async function main(): Promise<void> {
       toast('つながりませんでした: ' + ((e as Error)?.message ?? String(e)), true);
     }
   };
+  // lab(?lab=1)の画面で入れた設定は lab の保存領域にしか無い。本体の自動バックアップに引き継ぐかを聞く。
+  // 見せるのは repo 名だけ。トークンの値は画面にもログにも出さない
+  const offer = $('#labOffer');
+  async function useLabConfig(): Promise<void> {
+    if (!labCfg) return;
+    for (const b of document.querySelectorAll<HTMLButtonElement>('#labOffer button, #ghUseLab')) b.disabled = true;
+    try {
+      await auto.configure({ repo: labCfg.repo, token: labCfg.token });
+      offer.hidden = true;
+      toast(auto.status.error ? '設定しましたが、送れませんでした: ' + auto.status.error : `${labCfg.repo} へ送りました`, !!auto.status.error);
+    } catch (e) {
+      offer.hidden = true;
+      toast('lab の設定ではつながりませんでした(' + ((e as Error)?.message ?? String(e)) + ')。ノート一覧の「設定する」からトークンを入れ直してください', true);
+    } finally {
+      for (const b of document.querySelectorAll<HTMLButtonElement>('#labOffer button, #ghUseLab')) b.disabled = false;
+      if (!drawer.hidden) await renderDrawer(); else renderGh();
+    }
+  }
+  function showLabOffer(): void {
+    offer.querySelector('p')!.textContent = `lab に入れた設定(${labCfg!.repo})で、ノートの GitHub への自動バックアップを始めますか？`;
+    offer.hidden = false;
+  }
+  (offer.querySelector('[data-act=yes]') as HTMLButtonElement).onclick = useLabConfig;
+  (offer.querySelector('[data-act=no]') as HTMLButtonElement).onclick = async () => {
+    // 起動時には聞かない。ノート一覧の「lab の設定で始める」は残る。書けてから閉じる(すぐ再読み込みしても聞き直さない)
+    await store.setMeta(LAB_OFFER_KEY, 'declined').catch(() => {});
+    offer.hidden = true;
+  };
+  $('#ghUseLab').onclick = useLabConfig;
+  $('#ghGoSetup').onclick = () => {
+    const d = $('#ghSetup') as HTMLDetailsElement;
+    d.open = true;
+    d.scrollIntoView({ block: 'center' });
+    ($('#ghRepo') as HTMLInputElement).focus();
+  };
+
   $('#ghClear').onclick = async () => { await auto.configure(null); await renderDrawer(); toast('GitHub の設定を消しました(repo の中身はそのままです)'); };
   $('#ghNow').onclick = async () => {
     await auto.run();
@@ -615,6 +657,11 @@ async function main(): Promise<void> {
   if (first) await openNote(first.id); else await createNote();
   updateBadge();
   navigator.storage?.persist?.().catch(() => {});
+  if (!lab && !auto.cfg) {
+    labCfg = await readLabGitHub();
+    renderGh();
+    if (labCfg && (await store.getMeta<string>(LAB_OFFER_KEY)) !== 'declined') showLabOffer();
+  }
   auto.run().catch(() => {}); // 前回送れなかった分があれば送る(変わっていなければ読むだけ)
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {

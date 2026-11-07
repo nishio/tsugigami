@@ -83,6 +83,13 @@
       <h2>ノート</h2>
       <button type="button" id="newNote" class="primary">新しいノート</button>
     </div>
+    <div id="ghUnset" class="gh-unset" hidden>
+      <p><b>GitHub へのバックアップは未設定です。</b>書いたものはこの iPad の中にしかありません。</p>
+      <div class="row">
+        <button type="button" id="ghUseLab" class="primary" hidden>lab の設定で始める</button>
+        <button type="button" id="ghGoSetup">設定する</button>
+      </div>
+    </div>
     <ul id="noteList" class="note-list"></ul>
 
     <details id="trash">
@@ -140,6 +147,13 @@
   </aside>
 
   <div id="saveWarn" role="alert" hidden></div>
+  <div id="labOffer" role="dialog" aria-label="自動バックアップの設定" hidden>
+    <p></p>
+    <div class="row">
+      <button type="button" data-act="yes" class="primary">始める</button>
+      <button type="button" data-act="no">しない</button>
+    </div>
+  </div>
   <div id="toast" role="status" hidden></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

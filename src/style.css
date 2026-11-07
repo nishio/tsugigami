@@ -165,4 +165,19 @@ details summary { cursor: pointer; color: var(--muted); padding: 6px 0; }
 .block .form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .block .form input { font: inherit; font-size: 16px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink, #1d2230); }
 #ghActions { margin-bottom: 6px; }
+/* 自動バックアップが未設定の間は、ノート一覧の先頭に出し続ける */
+.gh-unset { margin: 0 0 4px; padding: 10px 12px; border-radius: 10px; background: #fdecea; color: #7a1f17; font-size: 14px; line-height: 1.5; }
+.gh-unset p { margin: 0 0 8px; }
+.gh-unset .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.gh-unset .row button:not(.primary) { border: 1px solid var(--line); background: #fff; }
+/* lab に入れた設定を本体のバックアップに使うか、起動時に一度だけ聞く */
+#labOffer {
+  position: fixed; z-index: 31; left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top) + 60px); width: min(480px, calc(100% - 32px));
+  padding: 12px 14px; border-radius: 12px; background: #fff; color: #23262d; font-size: 15px; line-height: 1.5;
+  box-shadow: 0 6px 24px rgba(0,0,0,.22);
+}
+#labOffer p { margin: 0 0 10px; }
+#labOffer .row { display: flex; gap: 8px; justify-content: flex-end; }
+#labOffer .row button:not(.primary) { border: 1px solid var(--line); background: #fff; }
 #ghInfo.error { color: var(--danger); }

@@ -10,6 +10,7 @@
 #lab button { height: 32px; min-width: 0; padding: 0 10px; border: 1px solid rgba(255, 255, 255, .35); color: #fff; }
 #lab .lab-msg { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #fff; color: #23262d; font-size: 16px; }
 #lab .lab-next { margin-top: 8px; width: 100%; height: 44px; background: #3b63d6; border: 0; font-size: 16px; }
-#lab .lab-cfg { display: flex; gap: 6px; margin-top: 8px; }
+#lab .lab-cfg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#lab .lab-main-l { flex-basis: 100%; display: flex; align-items: center; gap: 6px; }
 #lab .lab-cfg input { flex: 1; font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .35); background: #fff; color: #23262d; }
 #lab .lab-log { margin: 6px 0 0; max-height: 7.5em; overflow: hidden; white-space: pre-wrap; font: 11px/1.3 ui-monospace, Menlo, monospace; color: #cfd3dc; }

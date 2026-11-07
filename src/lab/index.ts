@@ -24,6 +24,7 @@ export async function startLab(app: TsugigamiApp, stage: HTMLElement): Promise<v
       <input class="lab-repo" placeholder="owner/repo" autocapitalize="off" autocorrect="off">
       <input class="lab-token" placeholder="token" type="password">
       <button type="submit">使う</button>
+      <label class="lab-main-l"><input type="checkbox" class="lab-main" checked> 本体のノートの GitHub へのバックアップにも使う</label>
     </form>
     <pre class="lab-log"></pre>`;
   document.body.append(root);
@@ -42,12 +43,14 @@ export async function startLab(app: TsugigamiApp, stage: HTMLElement): Promise<v
   try { cfg = (await (await Store.open('tsugigami')).getMeta<LabConfig>('github')) ?? null; } catch { /* 本体の保存領域が無い */ }
   if (!cfg) cfg = (await app.store.getMeta<LabConfig>('lab:github')) ?? null;
   const form = $<HTMLFormElement>('.lab-cfg');
+  let toMain = false;
   if (!cfg) {
     form.hidden = false;
     status('repo とトークンを入れてください');
     cfg = await new Promise<LabConfig>(f => {
       form.onsubmit = e => {
         e.preventDefault();
+        toMain = $<HTMLInputElement>('.lab-main').checked;
         f({ repo: $<HTMLInputElement>('.lab-repo').value.trim(), token: $<HTMLInputElement>('.lab-token').value.trim() });
       };
     });
@@ -56,6 +59,14 @@ export async function startLab(app: TsugigamiApp, stage: HTMLElement): Promise<v
   }
   const repo = new LabRepo(cfg);
   try { await repo.check(); } catch (e) { status('GitHub に届きません: ' + String((e as Error).message)); return; }
+  // 本体の自動バックアップにも使う(本体が未設定のときだけ。本体は次に開いたときに送り始める)。
+  // ここで書かないと、lab の設定は lab の保存領域にしか残らない(2026-11-07 に、本体が一度も送っていなかったと分かった)
+  if (toMain) {
+    try {
+      const main = await Store.open('tsugigami');
+      if (!(await main.getMeta('github'))) { await main.setMeta('github', cfg); log(`本体のバックアップにも ${cfg.repo} を設定した(本体を開くと送る)`); }
+    } catch (e) { log('本体のバックアップに設定できなかった: ' + String((e as Error).message)); }
+  }
 
   // ---- 見張りと実行 ----
   const done = new Set<string>(JSON.parse(localStorage.getItem(DONE_KEY) ?? '[]') as string[]);
