@@ -71,7 +71,7 @@ nishio が iPad + Apple Pencil で毎日使う手書きノートを、Web 技術
 nishio のフィードバック(実機の感想、要望、不満)や外部資料が来たら:
 1. `raw/` に保存(発言はそのまま)。
 2. 要点を nishio に短く返す。
-3. requirements / decisions / findings / concepts の関連ページを更新。矛盾する既存の記述は書き換え、古い主張を残さない。
+3. requirements / decisions / findings / concepts の関連ページを更新。既存の記述と食い違うときは、古い主張を消さずに、日付つきの訂正を足す(何がいつ変わったかを残す)。
 4. `wiki/index.md` を更新、`wiki/log.md` に `## [YYYY-MM-DD] ingest | <ソース名>`。
 
 ### Query(問い合わせ)
@@ -81,7 +81,7 @@ nishio のフィードバック(実機の感想、要望、不満)や外部資�
 4. `wiki/log.md` に `## [YYYY-MM-DD] query | <問い>`。
 
 ### Lint
-依頼されたら、wiki とコードの食い違い、古い主張、孤立ページ、未確認のまま放置された finding を洗い出し、提案として返す。`## [YYYY-MM-DD] lint`。
+依頼されたら(照合)、wiki とコード・外の現実(issue、repo)の食い違い、古い主張、孤立ページ、未確認のまま放置された finding を洗い出し、提案で止めずに直接直して commit する。元の記述は消さず、日付つきで追記する。`## [YYYY-MM-DD] lint`。
 
 ## 開発ルール
 
