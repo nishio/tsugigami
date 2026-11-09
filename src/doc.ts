@@ -1,7 +1,7 @@
 // 開いているノート 1 冊ぶんのメモリ上の状態: ストローク、空間索引、取り消し履歴。
 // 変更はすべて Op を通し、適用と同時に保存先(sink)へ流す。
 import { overlaps } from './geom';
-import { type Box, type Note, PAGE_H, PAGE_W, type Page, type Stroke, pageTop } from './model';
+import { type Box, type Note, PAGE_GAP, PAGE_W, type Page, type Stroke, noteBounds, pageTop } from './model';
 
 export type Op =
   | { t: 'add'; s: Stroke[] }
@@ -98,7 +98,8 @@ export class Doc {
         for (let i = 0; i < n; i++) {
           if (op.before[i]?.w === op.after[i]?.w) continue;
           const w = Math.max(op.before[i]?.w ?? 0, op.after[i]?.w ?? 0);
-          this.sink.invalidate([0, pageTop(i), PAGE_W * w, pageTop(i) + PAGE_H]);
+          // 紙はページの間まで伸びていて、上下のページとの継ぎ目の線(破線か実線か)も幅で変わるので、間の分も含める
+          this.sink.invalidate([0, pageTop(i) - PAGE_GAP, PAGE_W * w, pageTop(i + 1)]);
         }
         break;
       }
@@ -117,7 +118,8 @@ export class Doc {
     for (const s of this.strokes.values()) if (s.b[3] > bottom) bottom = s.b[3];
     const from = this.note.pages.length;
     while (bottom > pageTop(this.note.pages.length - 1)) this.note.pages.push({ w: 1 });
-    if (this.note.pages.length > from) this.sink.invalidate([0, pageTop(from) - PAGE_H, PAGE_W, pageTop(this.note.pages.length)]);
+    // 前の最後のページの紙も、ページの間まで伸びて継ぎ目が変わる(右へ継いだ紙の下端も)
+    if (this.note.pages.length > from) this.sink.invalidate([0, pageTop(from - 1), noteBounds(this.note)[2], pageTop(this.note.pages.length)]);
   }
 
   private insert(s: Stroke): void {

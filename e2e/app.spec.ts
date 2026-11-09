@@ -223,3 +223,25 @@ test('見た目', async ({ page }, info) => {
   await stroke(page, [[480, 380], [720, 380], [720, 620], [480, 620]]);
   await page.screenshot({ path: `test-results/look-${info.project.name}.png` });
 });
+
+test('縦に並ぶページの間は机の色の帯にせず、紙が続いて見える。右へ継いだ紙の下は机', async ({ page }) => {
+  await page.locator('.page-handle[data-page="0"]').click();
+  await page.locator('#pageMenu [data-act="widen"]').click();
+  // 2 ページ分の高さが入るように引く
+  await page.evaluate(() => {
+    const { r } = (window as any).tsugigami;
+    r.fit = false; r.view.s = 0.45; r.view.x = 20; r.view.y = 20; r.clampView(); r.settle(); r.drawNow(true);
+  });
+  const rgb = (x: number, y: number) => page.evaluate(([x, y]) => {
+    const { r } = (window as any).tsugigami, [sx, sy] = r.toScreen(x, y), d = r.dpr;
+    return Array.from((r.base as HTMLCanvasElement).getContext('2d')!.getImageData(Math.round(sx * d), Math.round(sy * d), 1, 1).data.slice(0, 3));
+  }, [x, y]);
+  const PAPER = [253, 252, 248], DESK = [230, 228, 222];
+  // ページの間(y = 1123〜1139)の真ん中。紙が左右の継ぎ目線から離れた所
+  expect(await rgb(400.5, 1131)).toEqual(PAPER);
+  // 右へ継いだ紙(1 ページ目だけ 2 枚幅)の中、と、その下(2 ページ目は 1 枚幅なので机)。
+  // 継いだ紙もページの間まで伸び、下端は 2 ページ目の上端と一直線にそろう
+  expect(await rgb(1200.5, 600)).toEqual(PAPER);
+  expect(await rgb(1200.5, 1131)).toEqual(PAPER);
+  expect(await rgb(1200.5, 1160)).toEqual(DESK);
+});

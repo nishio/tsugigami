@@ -2,7 +2,7 @@
 // スクロールやズームではタイルを貼り直すだけにする。書いている最中の線は別レイヤー(controller 側)。
 import type { Doc } from './doc';
 import { type Mat, overlaps } from './geom';
-import { type Box, GRID, type Note, PAGE_GAP, PAGE_W, type Stroke, noteBounds, pageRect, penWidth } from './model';
+import { type Box, GRID, type Note, PAGE_GAP, PAGE_W, type Stroke, noteBounds, pageRect, pageTop, penWidth } from './model';
 
 export const DESK = '#e6e4de';
 export const PAPER = '#fdfcf8';
@@ -137,10 +137,28 @@ export function paintOrder(list: Stroke[]): Stroke[] {
   return list.sort((a, b) => (a.kind === b.kind ? a.z - b.z : a.kind === 'marker' ? -1 : 1));
 }
 
+/**
+ * i ページ目の紙として塗る範囲。下に次のページがあれば、ページの間(PAGE_GAP)も紙で埋めて、
+ * 次のページの上端まで伸ばす。縦に継いだ紙を 1 本の帳面として隙間なく見せるため
+ * (nishio「ページの継ぎ目に隙間が入ってるけど隙間がない方がいいね」2026-11-09)。
+ * 座標(pageTop)は変えない。描き方だけの話なので、保存してある線の位置はそのまま。
+ */
+export function sheetRect(note: Note, i: number): Box {
+  const r = pageRect(note, i);
+  if (i + 1 < note.pages.length) r[3] = pageTop(i + 1);
+  return r;
+}
+
 /** ページの紙と方眼(ノート座標で描く。ctx にはノート→画面の変換が入っている前提) */
 export function drawPaper(ctx: CanvasRenderingContext2D, note: Note, area: Box, px: number): void {
-  for (let i = 0; i < note.pages.length; i++) {
-    const r = pageRect(note, i);
+  const n = note.pages.length, wOf = (i: number) => (i >= 0 && i < n ? PAGE_W * note.pages[i].w : 0);
+  const seam = (x0: number, y0: number, x1: number, y1: number, dashed: boolean) => {
+    if (x0 >= x1 && y0 >= y1) return;
+    ctx.strokeStyle = PAGE_EDGE; ctx.lineWidth = px; ctx.setLineDash(dashed ? [6 * px, 6 * px] : []);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  };
+  for (let i = 0; i < n; i++) {
+    const r = sheetRect(note, i);
     if (!overlaps(r, area)) continue;
     ctx.fillStyle = PAPER;
     ctx.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]);
@@ -149,20 +167,23 @@ export function drawPaper(ctx: CanvasRenderingContext2D, note: Note, area: Box, 
       ctx.beginPath();
       const x0 = Math.max(r[0], area[0]), x1 = Math.min(r[2], area[2]);
       const y0 = Math.max(r[1], area[1]), y1 = Math.min(r[3], area[3]);
+      // 方眼はページの上端から数える(これまでと同じ位置)。次のページの上端(継ぎ目)に近すぎる横線は引かない
+      const yEnd = i + 1 < n ? Math.min(y1, r[3] - GRID / 2) : y1;
       for (let x = r[0] + Math.ceil((x0 - r[0]) / GRID) * GRID; x <= x1; x += GRID) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); }
-      for (let y = r[1] + Math.ceil((y0 - r[1]) / GRID) * GRID; y <= y1; y += GRID) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); }
+      for (let y = r[1] + Math.ceil((y0 - r[1]) / GRID) * GRID; y <= yEnd; y += GRID) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); }
       ctx.stroke();
     }
     // 右へ継いだ紙の継ぎ目
-    if (note.pages[i].w > 1) {
-      ctx.strokeStyle = PAGE_EDGE; ctx.lineWidth = px; ctx.setLineDash([6 * px, 6 * px]);
-      ctx.beginPath();
-      for (let k = 1; k < note.pages[i].w; k++) { ctx.moveTo(PAGE_W * k, r[1]); ctx.lineTo(PAGE_W * k, r[3]); }
-      ctx.stroke(); ctx.setLineDash([]);
-    }
-    ctx.strokeStyle = PAGE_EDGE; ctx.lineWidth = px;
-    ctx.strokeRect(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+    for (let k = 1; k < note.pages[i].w; k++) seam(PAGE_W * k, r[1], PAGE_W * k, r[3], true);
+    // 縁: 上のページと接する所は破線の継ぎ目、はみ出した所は実線。下のページと接しない所の下端も実線
+    const w = r[2], up = Math.min(w, wOf(i - 1)), down = Math.min(w, wOf(i + 1));
+    seam(0, r[1], up, r[1], true);
+    seam(up, r[1], w, r[1], false);
+    seam(down, r[3], w, r[3], false);
+    seam(0, r[1], 0, r[3], false);
+    seam(w, r[1], w, r[3], false);
   }
+  ctx.setLineDash([]);
 }
 
 // ---- タイル ----
