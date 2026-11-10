@@ -3,7 +3,7 @@ title: iPad の Safari で届くイベントと機能(lab の記録から)
 type: finding
 confidence: 実機で確認
 created: 2026-11-03
-updated: 2026-11-03
+updated: 2026-11-10
 sources:
   - raw/2026-10-30_lab_palm-rest/log.txt
   - raw/2026-10-30_lab_palm-rest/minutes-events.json
@@ -26,6 +26,8 @@ sources:
 | JS に届くまでの時間 | 直近のストロークの平均で 5.2ms と 36.3ms。1 本ずつの値で、ばらつきは大きい | `log.txt` の env の `lagMs` |
 
 計測欄の値(`stats`)のうち、`evRate`・`ptRate`・`lagMs` は「直近のストローク」のもので、実験の始まりの時点では前の実験の値が残っている。`hover`・`coalesced`・`predicted` は「ページを開いてから一度でも届いたか」を表し、一度 `true` になると戻らない(リセットする処理は無い。[src/controller.ts](../../src/controller.ts) の `stats`)。だから `hover: false` は、そのページを開いている間に Pencil のホバーの pointermove が紙の上に一度も届かなかった、という意味になる。どちらの値も本物の Pencil で書いた線から来ている(lab の合成入力には合体・予測イベントが付かない。[iPad 自身を実験機にする](../decisions/2026-10-28_iPad自身を実験機にする.md))。
+
+**(2026-11-10 追記)** 上の「7,014 回すべてに付いていた」の 7,014 回のうち 3,325 回は、直前の move の**複製**(同じ時刻、同じ合体イベントの列)だった。Safari は合体イベントが 2 個以上の move をほぼ毎回 2 回届ける([finding](Safariは同じpointermoveを2回届ける.md))。重複を除くと move は 3,689 回、1 秒あたりの回数(`evRate`)も約半分と読むべき。また合体イベントの座標はすべて 0.5 CSS px の倍数だった([finding](Pencilの座標はデバイス画素に丸められる.md))。
 
 ## 何に効くか
 

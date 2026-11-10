@@ -3,6 +3,7 @@
 import type { Doc } from './doc';
 import { type Mat, overlaps } from './geom';
 import { type Box, GRID, type Note, PAGE_GAP, PAGE_W, type Stroke, noteBounds, pageRect, pageTop, penWidth } from './model';
+import { renderPts } from './smooth';
 
 export const DESK = '#e6e4de';
 export const PAPER = '#fdfcf8';
@@ -93,6 +94,8 @@ export function drawMarker(ctx: CanvasRenderingContext2D, s: Ink): void {
  * 太さが一定なので 1 本を 1 つのパスで描く。ペンは書いている最中と同じ「中点から中点への二次曲線」
  * (+ 最後の中点からペン先までの直線)にして、確定した瞬間に線の形が変わらないようにする。
  * (筆圧で太さを変えていた頃は、輪郭の多角形を塗っていた。git 履歴と wiki 参照)
+ * 点列は、書いたときの画素の格子に揃った座標を平滑化してから使う(smooth.ts)。書いている最中は平滑化しないが、
+ * 動くのは書いたときの 1 デバイス画素ほどなので、確定した瞬間の変化は見えない。
  */
 interface StrokePaths { line: Path2D; lw: number }
 const pathCache = new WeakMap<Stroke, StrokePaths>();
@@ -100,7 +103,7 @@ const pathCache = new WeakMap<Stroke, StrokePaths>();
 function strokePaths(s: Stroke): StrokePaths {
   let c = pathCache.get(s);
   if (c) return c;
-  const P = s.pts, n = P.length / 3, line = new Path2D();
+  const P = renderPts(s.pts), n = P.length / 3, line = new Path2D();
   line.moveTo(P[0], P[1]);
   if (n === 1) line.lineTo(P[0] + 0.01, P[1]);
   else if (s.kind === 'marker') for (let j = 3; j < P.length; j += 3) line.lineTo(P[j], P[j + 1]);

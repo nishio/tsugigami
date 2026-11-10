@@ -245,3 +245,27 @@ test('縦に並ぶページの間は机の色の帯にせず、紙が続いて�
   expect(await rgb(1200.5, 1131)).toEqual(PAPER);
   expect(await rgb(1200.5, 1160)).toEqual(DESK);
 });
+
+test('同じ合体イベントの列が 2 回届いても、線は後戻りしない(iPad の Safari の挙動)', async ({ page }) => {
+  const n = await page.evaluate(async () => {
+    const st = document.querySelector('#stage')!, r = st.getBoundingClientRect();
+    const wait = () => new Promise(f => setTimeout(f, 5));
+    const init = (x: number, buttons = 1): PointerEventInit => ({ bubbles: true, pointerId: 7, pointerType: 'pen', isPrimary: true, clientX: r.left + x, clientY: r.top + 300, pressure: 0.5, buttons });
+    st.dispatchEvent(new PointerEvent('pointerdown', init(100)));
+    // 合体イベントは作った時刻を持つ。同じものを 2 回渡すのが、Safari が同じ pointermove を 2 回届けるのと同じ形
+    const co: PointerEvent[] = [];
+    for (const x of [110, 120, 130]) { await wait(); co.push(new PointerEvent('pointermove', init(x))); }
+    if (new PointerEvent('pointermove', { coalescedEvents: co }).getCoalescedEvents().length !== 3) return null; // 合体イベントを渡せないブラウザ
+    st.dispatchEvent(new PointerEvent('pointermove', { ...init(130), coalescedEvents: co }));
+    st.dispatchEvent(new PointerEvent('pointermove', { ...init(130), coalescedEvents: co }));
+    await wait();
+    st.dispatchEvent(new PointerEvent('pointermove', { ...init(140), coalescedEvents: [new PointerEvent('pointermove', init(140))] }));
+    st.dispatchEvent(new PointerEvent('pointerup', init(140, 0)));
+    const s = [...(window as any).tsugigami.doc.strokes.values()][0];
+    return Array.from(s.pts as Float32Array).filter((_, i) => i % 3 === 0);
+  });
+  test.skip(n === null, 'このブラウザでは合成イベントに合体イベントを持たせられない');
+  // x が増えていくだけ(110, 120, 130 を 2 回なぞらない)
+  expect(n!.length).toBe(5);
+  expect(n!.every((x, i) => i === 0 || x > n![i - 1])).toBe(true);
+});

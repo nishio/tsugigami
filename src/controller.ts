@@ -43,7 +43,7 @@ const FIT_PINCH = 0.15;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
-  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; drawn: number }
+  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; drawn: number; t: number }
   | { k: 'erase'; removed: Stroke[]; last: [number, number]; sp: [number, number] }
   | { k: 'lasso'; poly: number[] }
   | { k: 'xform'; mode: 'move' | 'scale' | 'rotate'; start: [number, number]; m0: Mat; pivot: [number, number] });
@@ -370,7 +370,7 @@ export class Controller {
     switch (this.tool) {
       case 'pen': case 'marker': {
         const b = this.tool === 'pen' ? this.pen : this.marker;
-        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, drawn: 1 };
+        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, drawn: 1, t: -Infinity };
         this.pred = null;
         this.r.hold(true);
         this.overlay();
@@ -412,6 +412,10 @@ export class Controller {
       case 'draw': {
         const P = a.ink.pts, eps = 0.3 / r.view.s;
         for (const ev of list) {
+          // iPad の Safari は、合体イベントを持つ pointermove を同じ中身で 2 回届ける(同じ時刻、同じ点の列)。
+          // そのまま足すと線が数点ぶん後戻りしてなぞり直す。時刻が戻る点は捨てる(同じ時刻は下の距離の判定で落ちる)
+          if (ev.timeStamp < a.t) continue;
+          a.t = ev.timeStamp;
           const [x, y] = r.toWorld(...this.pt(ev)), j = P.length - 3;
           if (Math.abs(x - P[j]) + Math.abs(y - P[j + 1]) < eps) continue;
           P.push(x, y, pres(ev));
