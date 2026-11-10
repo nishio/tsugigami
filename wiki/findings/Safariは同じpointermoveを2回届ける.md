@@ -9,6 +9,7 @@ sources:
   - raw/2026-10-30_lab_taps/hand-write-events.json
   - raw/tsugigami-20261028-1535.json
   - raw/tsugigami-20261028-1519.json
+  - raw/2026-10-30_lab_aa-live-vs-tile.md
   - raw/2026-11-10_鋭い折り返しの欠けと拡大時のガタつき.md
 ---
 
@@ -25,6 +26,8 @@ Pencil の pointermove は、**同じ時刻・同じ合体イベントの列を�
 | 2026-10-30 議事録(`minutes-events.json`) | 7,014 | 3,325 | 3,023 中 2,815 |
 | 2026-10-30 手を置いて書く(`hand-write-events.json`) | 430 | 198 | 217 中 190 |
 | 2026-10-28 ゆっくり横線(lab-results のみ、raw に無い) | 1,566 | 766 | 795 中 763 |
+
+(2026-11-10 追記: 3 行目の記録は [raw/2026-10-30_lab_aa-live-vs-tile/](../../raw/2026-10-30_lab_aa-live-vs-tile.md) に写した。)
 
 合体イベントが 1 個だけの move はほとんど繰り返されない(議事録で 510 回)。繰り返しを除くと、合体イベントの時刻が前の move より戻ることは 1 度も無い。
 

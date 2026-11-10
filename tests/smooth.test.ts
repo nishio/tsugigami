@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import slowLine from '../raw/2026-10-30_lab_aa-live-vs-tile/pencil-strokes.json?raw';
 import recorded from '../raw/tsugigami-20261028-1535.json?raw';
-import { SMOOTH_SIGMA, dropReplays, latticeStep, renderPts, smoothPts } from '../src/smooth';
+import { SMOOTH_SIGMA, dropReplays, latticeStep, renderPts, smoothAdaptive, smoothPts } from '../src/smooth';
 
 /** 決まった乱数(テストを毎回同じにする) */
 function rng(seed: number) {
@@ -52,6 +53,26 @@ function jaggedness(P: ArrayLike<number>, q: number): number {
   let sum = 0;
   for (let i = 1; i < a.length; i++) { let d = a[i] - a[i - 1]; d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI; sum += d * d; }
   return (Math.sqrt(sum / (a.length - 1)) * 180) / Math.PI;
+}
+
+/** 弧長 h ごとに取り直した折れ線の、向きの変化の絶対値の中央値(度)。手の大きな動きに左右されにくい、細かい段の目安 */
+function medianTurn(P: ArrayLike<number>, h: number): number {
+  const s = [0];
+  for (let j = 3; j < P.length; j += 3) s.push(s[s.length - 1] + Math.hypot(P[j] - P[j - 3], P[j + 1] - P[j - 2]));
+  const R: [number, number][] = [];
+  for (let t = 0, i = 0; t <= s[s.length - 1]; t += h) {
+    while (i + 1 < s.length - 1 && s[i + 1] < t) i++;
+    const u = (t - s[i]) / (s[i + 1] - s[i] || 1);
+    R.push([P[i * 3] + u * (P[i * 3 + 3] - P[i * 3]), P[i * 3 + 1] + u * (P[i * 3 + 4] - P[i * 3 + 1])]);
+  }
+  const d: number[] = [];
+  for (let i = 2; i < R.length; i++) {
+    let x = Math.atan2(R[i][1] - R[i - 1][1], R[i][0] - R[i - 1][0]) - Math.atan2(R[i - 1][1] - R[i - 2][1], R[i - 1][0] - R[i - 2][0]);
+    x -= Math.round(x / (2 * Math.PI)) * 2 * Math.PI;
+    d.push(Math.abs(x));
+  }
+  d.sort((a, b) => a - b);
+  return (d[d.length >> 1] * 180) / Math.PI;
 }
 
 const q = 0.42; // 実機の記録で見つかった間隔(倍率 1.19、dpr 2)
@@ -130,6 +151,61 @@ describe('smoothPts', () => {
   });
 });
 
+describe('smoothAdaptive', () => {
+  const line = (slope: number) => (s: number): [number, number] => [s / Math.hypot(1, slope), (s * slope) / Math.hypot(1, slope)];
+
+  it('水平に近い長い線のゆるい段を、幅 4q よりずっとならす(nishio「水平に近い長めの線」2026-11-10)', () => {
+    // 4 通りの格子のずれで平均する。2026-11-10 の値(真の線からの RMS、幅 4q → 幅を選ぶ): 傾き 0.01 で 0.27q → 0.12q、0.03 で 0.24q → 0.06q
+    for (const [slope, L, ratio] of [[0.01, 200, 0.6], [0.03, 120, 0.4]]) {
+      const f = line(slope);
+      let a = 0, b = 0, ja = 0, jb = 0;
+      for (let seed = 1; seed <= 4; seed++) {
+        const { P } = quantized(f, L, q, seed), A = smoothAdaptive(P, q), S = smoothPts(P, q * SMOOTH_SIGMA);
+        a += deviation(A, f, L).rms; b += deviation(S, f, L).rms; ja += jaggedness(A, q); jb += jaggedness(S, q);
+      }
+      expect(a).toBeLessThan(ratio * b);
+      expect(ja).toBeLessThan(jb);
+    }
+  });
+
+  it('角は幅 4q と同じくらいしか丸めない、線の端も引っ込めない', () => {
+    const f = (s: number): [number, number] => (s < 40 ? [s, 0.02 * s] : [40, 0.8 + (s - 40)]);
+    const { P } = quantized(f, 80, q, 6);
+    const A = smoothAdaptive(P, q), n = A.length;
+    expect(deviation(A, f, 80).max).toBeLessThan(Math.max(1.1 * deviation(smoothPts(P, q * SMOOTH_SIGMA), f, 80).max, q));
+    expect(Math.hypot(A[0] - P[0], A[1] - P[1])).toBeLessThan(q);
+    expect(Math.hypot(A[n - 3] - P[n - 3], A[n - 2] - P[n - 2])).toBeLessThan(q);
+  });
+
+  it('小さな円はほとんど縮めない(格子の 0.2 倍まで)', () => {
+    for (const R of [3, 5, 12]) {
+      const f = (s: number): [number, number] => [R * Math.cos(s / R), R * Math.sin(s / R)];
+      const { P } = quantized(f, 2 * Math.PI * R, q, 4);
+      const A = smoothAdaptive(P, q);
+      let sum = 0;
+      for (let j = 0; j < A.length; j += 3) sum += Math.hypot(A[j], A[j + 1]);
+      expect(Math.abs(sum / (A.length / 3) - R)).toBeLessThan(0.2 * q);
+      expect(jaggedness(A, q)).toBeLessThan(jaggedness(P, q) / 2);
+    }
+  });
+
+  it('手の揺れ(格子より大きいうねり)は消さない', () => {
+    const f = (s: number): [number, number] => [s, Math.sin((2 * Math.PI * s) / 30)];
+    const { P } = quantized(f, 120, q, 8);
+    expect(deviation(smoothAdaptive(P, q), f, 120).max).toBeLessThan(0.6 * q);
+  });
+
+  it('筆圧はそのまま、点の数も変えない。2 点以下と格子 0 はそのまま', () => {
+    const { P } = quantized(s => [s, 0.02 * s], 60, q);
+    P[5] = 0.9;
+    const A = smoothAdaptive(P, q);
+    expect(A.length).toBe(P.length);
+    expect(A[5]).toBeCloseTo(0.9);
+    expect(Array.from(smoothAdaptive([1, 2, 0.3, 3, 4, 0.3], q))).toEqual([1, 2, expect.closeTo(0.3), 3, 4, expect.closeTo(0.3)]);
+    expect(Array.from(smoothAdaptive(P, 0))).toEqual(Array.from(P));
+  });
+});
+
 describe('dropReplays', () => {
   const pts = (...xy: number[]) => Float32Array.from(xy.flatMap((v, i) => (i % 2 ? [v, 0.3] : [v])));
 
@@ -155,7 +231,7 @@ describe('実機で書いた線(raw/tsugigami-20261028-1535.json)', () => {
 
   it('描くための点列は、なぞり直しを除いてから平滑化したもの', () => {
     const P = Float32Array.from(data.strokes[0].pts), D = dropReplays(P);
-    expect(Array.from(renderPts(P))).toEqual(Array.from(smoothPts(D, latticeStep(D) * SMOOTH_SIGMA)));
+    expect(Array.from(renderPts(P))).toEqual(Array.from(smoothAdaptive(D, latticeStep(D))));
   });
 
   it('ほとんどの線になぞり直しがある', () => {
@@ -173,10 +249,32 @@ describe('実機で書いた線(raw/tsugigami-20261028-1535.json)', () => {
       found++;
       expect(g).toBeGreaterThan(0.39);
       expect(g).toBeLessThan(0.43);
-      const S = smoothPts(P, g * SMOOTH_SIGMA);
+      const S = renderPts(P);
       for (let j = 0; j < P.length; j += 3) moved = Math.max(moved, Math.hypot(S[j] - P[j], S[j + 1] - P[j + 1]) / g);
     }
     expect(found / total).toBeGreaterThan(0.9);
+    expect(moved).toBeLessThan(2);
+  });
+});
+
+describe('実機でゆっくり引いた横線(raw/2026-10-30_lab_aa-live-vs-tile)', () => {
+  const line = (JSON.parse(slowLine) as { z: number; pts: number[] }[]).find(st => st.z === 2)!;
+  const P = dropReplays(Float32Array.from(line.pts)), g = latticeStep(P);
+
+  it('格子が見つかる', () => {
+    expect(g).toBeGreaterThan(0.41);
+    expect(g).toBeLessThan(0.43);
+  });
+
+  it('細かい折れ(弧長 2 格子ごとの向きの変化の中央値)が、幅 4q の平滑化より大きく減る', () => {
+    // 2026-11-10 の値: 幅 4q 0.93°、幅を選ぶ平滑化 0.47°
+    expect(medianTurn(smoothAdaptive(P, g), 2 * g)).toBeLessThan(0.7 * medianTurn(smoothPts(P, g * SMOOTH_SIGMA), 2 * g));
+  });
+
+  it('点は格子 2 つ分も動かない(ペンを離した瞬間に線が飛ばない)', () => {
+    const A = smoothAdaptive(P, g);
+    let moved = 0;
+    for (let j = 0; j < P.length; j += 3) moved = Math.max(moved, Math.hypot(A[j] - P[j], A[j + 1] - P[j + 1]) / g);
     expect(moved).toBeLessThan(2);
   });
 });
