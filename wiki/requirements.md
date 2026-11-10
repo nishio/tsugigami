@@ -2,7 +2,7 @@
 title: 要件
 type: requirements
 created: 2026-10-27
-updated: 2026-11-07
+updated: 2026-11-10
 sources:
   - raw/2026-10-27_Notability置き換えの要件会話.md
   - raw/2026-10-28_issue3_描き始めのパームリジェクション.md
@@ -63,6 +63,7 @@ nishio の発言([raw](../raw/2026-10-27_Notability置き換えの要件会話.m
 ## 将来の可能性(実装しない)
 
 - 「将来的にはチャットやKozanebaと接続できるといいのかも？」(nishio、2026-11-06、疑問形のまま)。要望として確定したものではない。Kozaneba との連携の下調べは [Kozaneba との関係](themes/Kozanebaとの関係.md)。チャット(LLM との会話のことか、人とのチャットか)は聞いていない。
+  - 2026-11-10: AI に投げた仕事の状態を反映する付箋は、具体的なタスクの話が混ざるので別の非公開 repo で扱う(nishio)。
 
 ## Sources
 
