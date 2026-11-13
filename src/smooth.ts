@@ -218,8 +218,35 @@ export function dropReplays(P: Float32Array, stride = 3): Float32Array {
   return m === n ? P : out.slice(0, m * stride);
 }
 
-/** 描くための点列。なぞり直しを除き、格子に揃っていれば平滑化する(ほかの端末や回転した線は揃っていない) */
+/**
+ * 描く線が、保存した外接矩形(元の点 ± 太さの半分)から外へ出てよい幅(ノート座標)。
+ * 2 次式を当てた線の端は、元の点の外へ格子 1 つ分ほど伸びる(実機のノート 3180 本で最大 0.46)。
+ * タイルは、この幅だけ広げた範囲で描く線を選び、焼き直す(render.ts)。広げないと、外へ出た丸い端が
+ * 隣のタイルに描かれず、タイルの境目で四角く切れる(issue #4「描き初めが欠ける」、2026-11-14)。
+ */
+export const INK_MARGIN = 1;
+
+/**
+ * 描くための点列。なぞり直しを除き、格子に揃っていれば平滑化する(ほかの端末や回転した線は揃っていない)。
+ * 平滑化した点は、元の点の外接矩形を INK_MARGIN 広げた中に収める(ふだんは届かない。縮めて書いた線の保険)。
+ * 元の点の矩形ちょうどに寄せると、端の近くの点だけが片方の座標で止まり、線に折れができる。
+ */
 export function renderPts(P: Float32Array): Float32Array {
   const D = dropReplays(P), q = latticeStep(D);
-  return q ? smoothAdaptive(D, q) : D;
+  return q ? clampToBox(smoothAdaptive(D, q), D, INK_MARGIN) : D;
+}
+
+/** Q の点を、R の点の外接矩形を m 広げた中に寄せる(Q を書き換えて返す) */
+export function clampToBox(Q: Float32Array, R: Float32Array, m = 0, stride = 3): Float32Array {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let j = 0; j < R.length; j += stride) {
+    if (R[j] < x0) x0 = R[j]; if (R[j] > x1) x1 = R[j];
+    if (R[j + 1] < y0) y0 = R[j + 1]; if (R[j + 1] > y1) y1 = R[j + 1];
+  }
+  x0 -= m; y0 -= m; x1 += m; y1 += m;
+  for (let j = 0; j < Q.length; j += stride) {
+    Q[j] = Math.min(x1, Math.max(x0, Q[j]));
+    Q[j + 1] = Math.min(y1, Math.max(y0, Q[j + 1]));
+  }
+  return Q;
 }

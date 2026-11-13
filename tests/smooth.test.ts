@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import slowLine from '../raw/2026-10-30_lab_aa-live-vs-tile/pencil-strokes.json?raw';
 import recorded from '../raw/tsugigami-20261028-1535.json?raw';
-import { SMOOTH_SIGMA, dropReplays, latticeStep, renderPts, smoothAdaptive, smoothPts } from '../src/smooth';
+import { INK_MARGIN, SMOOTH_SIGMA, clampToBox, dropReplays, latticeStep, renderPts, smoothAdaptive, smoothPts } from '../src/smooth';
 
 /** 決まった乱数(テストを毎回同じにする) */
 function rng(seed: number) {
@@ -229,14 +229,31 @@ describe('dropReplays', () => {
 describe('実機で書いた線(raw/tsugigami-20261028-1535.json)', () => {
   const data = JSON.parse(recorded) as { strokes: { pts: number[] }[] };
 
-  it('描くための点列は、なぞり直しを除いてから平滑化したもの', () => {
+  it('描くための点列は、なぞり直しを除いてから平滑化し、元の点の外接矩形 + INK_MARGIN に収めたもの', () => {
     const P = Float32Array.from(data.strokes[0].pts), D = dropReplays(P);
-    expect(Array.from(renderPts(P))).toEqual(Array.from(smoothAdaptive(D, latticeStep(D))));
+    expect(Array.from(renderPts(P))).toEqual(Array.from(clampToBox(smoothAdaptive(D, latticeStep(D)), D, INK_MARGIN)));
   });
 
   it('ほとんどの線になぞり直しがある', () => {
     const withReplay = data.strokes.filter(st => { const P = Float32Array.from(st.pts); return dropReplays(P).length < P.length; });
     expect(withReplay.length / data.strokes.length).toBeGreaterThan(0.9);
+  });
+
+  it('描く点が元の点の外接矩形から出る幅は INK_MARGIN の中(タイルはその幅だけ広く線を選ぶ。超えると丸い端がタイルの境目で切れる。issue #4)', () => {
+    let over = 0;
+    for (const st of data.strokes) {
+      const P = Float32Array.from(st.pts), S = renderPts(P);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let j = 0; j < P.length; j += 3) { x0 = Math.min(x0, P[j]); x1 = Math.max(x1, P[j]); y0 = Math.min(y0, P[j + 1]); y1 = Math.max(y1, P[j + 1]); }
+      for (let j = 0; j < S.length; j += 3) over = Math.max(over, x0 - S[j], S[j] - x1, y0 - S[j + 1], S[j + 1] - y1);
+    }
+    expect(over).toBeGreaterThan(0); // 平滑化した端は実際に外へ出る(だからタイルを広げる)
+    expect(over).toBeLessThan(INK_MARGIN / 2); // 寄せる処理に頼らず、ふだんは余裕をもって収まる
+  });
+
+  it('寄せる処理は、外接矩形 + 幅の外の点だけを動かす', () => {
+    const R = Float32Array.from([0, 0, 1, 10, 10, 1]);
+    expect(Array.from(clampToBox(Float32Array.from([-0.5, 5, 1, 12, 3, 1]), R, 1))).toEqual([-0.5, 5, 1, 11, 3, 1]);
   });
 
   it('ほとんどの線で格子(約 0.4 px)が見つかり、平滑化で点は格子 2 つ分も動かない', () => {

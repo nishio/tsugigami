@@ -1,9 +1,9 @@
 // 描画。書き終わった線はタイル(ノート座標の正方形)ごとにビットマップへ焼いてキャッシュし、
 // スクロールやズームではタイルを貼り直すだけにする。書いている最中の線は別レイヤー(controller 側)。
 import type { Doc } from './doc';
-import { type Mat, overlaps } from './geom';
+import { type Mat, grow, overlaps } from './geom';
 import { type Box, GRID, type Note, PAGE_GAP, PAGE_W, type Stroke, noteBounds, pageRect, pageTop, penWidth } from './model';
-import { renderPts } from './smooth';
+import { INK_MARGIN, renderPts } from './smooth';
 
 export const DESK = '#e6e4de';
 export const PAPER = '#fdfcf8';
@@ -292,7 +292,8 @@ export class Renderer {
     for (const [key, t] of this.tiles) {
       if (!box) { t.rs = -1; continue; }
       const [k, tx, ty] = key.split(':').map(Number), tw = TILE / 2 ** k;
-      if (overlaps(box, [tx * tw, ty * tw, (tx + 1) * tw, (ty + 1) * tw])) t.dirty = true;
+      // 描く線は保存した外接矩形から INK_MARGIN まで出るので、その分広く汚す(renderTile と揃える)
+      if (overlaps(grow(box, INK_MARGIN), [tx * tw, ty * tw, (tx + 1) * tw, (ty + 1) * tw])) t.dirty = true;
     }
     this.request();
   }
@@ -459,7 +460,8 @@ export class Renderer {
     ctx.setTransform(f, 0, 0, f, -area[0] * f, -area[1] * f);
     const doc = this.doc!;
     drawPaper(ctx, doc.note, area, 1 / f);
-    const list = paintOrder(doc.query(area).filter(s => !doc.hidden.has(s.id)));
+    // 平滑化した線の丸い端は保存した外接矩形から少し出る。隣のタイルの線も拾わないと、境目で四角く切れる(issue #4)
+    const list = paintOrder(doc.query(grow(area, INK_MARGIN)).filter(s => !doc.hidden.has(s.id)));
     for (const s of list) drawStroke(ctx, s);
     return t;
   }
