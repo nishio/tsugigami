@@ -93,6 +93,18 @@ describe('latticeStep', () => {
     expect(latticeStep(P)).toBeCloseTo(1 / 16, 3);
   });
 
+  it('GitHub から戻した線(座標を 0.01 に丸めた)で、速く書いた線(点の間が格子の 10 倍ほど)でも見つける', () => {
+    // 2026-11-13 の実機のページで、水平な長い線の格子(0.284)が見つからず、ならされていなかった
+    const q2 = 0.2841, r = rng(7), P: number[] = [];
+    let x = 32.96;
+    for (let i = 0; i < 100; i++) {
+      x += q2 * (1 + Math.floor(r() * 10));
+      const y = 12734 + 3 * Math.sin(x / 40);
+      P.push(Math.round(Math.round(x / q2) * q2 * 100) / 100, Math.round(Math.round(y / q2) * q2 * 100) / 100, 0.2);
+    }
+    expect(Math.abs(latticeStep(P) - q2)).toBeLessThan(0.01 * q2);
+  });
+
   it('格子に揃っていない点列は 0', () => {
     const r = rng(5), P: number[] = [];
     for (let i = 0; i < 50; i++) P.push(i * 0.7 + r() * 0.3, Math.sin(i / 5) * 3 + r() * 0.3, 0.3);

@@ -9,10 +9,18 @@
 
 /** 格子の間隔の候補として扱う最小値(Float32 で保存した座標の丸めより十分大きく) */
 const MIN_STEP = 0.02;
+/**
+ * 格子の整数倍からのずれとして、間隔の割合とは別に許す量(ノート座標)。GitHub へのバックアップは座標を
+ * 0.01 に丸めて書く(github.ts)ので、そこから戻した線は、隣の点との差が最大 0.01 ずれる。
+ */
+const ROUND_SLACK = 0.011;
 
 /**
  * 点列の座標が揃っている格子の間隔(ノート座標)。揃っていなければ 0。
  * 隣り合う点の差 |dx|, |dy| のうち 0 でないものが、ほぼすべて(9 割)ある間隔の整数倍になっているかで見る。
+ * 間隔は、最小の差から当たりをつけてから、すべての差に最小二乗で合わせ直す。最小の差 1 つから決めると、
+ * 座標が 0.01 に丸められた線(GitHub から戻した線)で数 % ずれ、速く書いた線の 10 倍ほどの差が
+ * 整数倍に乗らなくなっていた(2026-11-13 のページで、水平な長い線がならされていなかった)。
  */
 export function latticeStep(P: ArrayLike<number>, stride = 3): number {
   const d: number[] = [];
@@ -21,12 +29,23 @@ export function latticeStep(P: ArrayLike<number>, stride = 3): number {
   }
   if (d.length < 4) return 0;
   const min = Math.min(...d);
+  const near = (v: number, c: number) => Math.abs(v - Math.round(v / c) * c) < 0.15 * c + ROUND_SLACK;
   // 最小の差が格子の 2 倍や 3 倍のこともある(速く書いた線)ので、割った値も試す
   for (let k = 1; k <= 4; k++) {
-    const c = min / k;
+    let c = min / k;
     if (c < MIN_STEP) break;
+    // 小さい倍数から順に合わせ直す(大きい倍数は、当たりのずれが倍数ぶん膨らんで、整数倍の判定を誤る)
+    for (const top of [4, 16, Infinity]) {
+      let num = 0, den = 0;
+      for (const v of d) {
+        const r = Math.round(v / c);
+        if (r >= 1 && r <= top && near(v, c)) { num += v * r; den += r * r; }
+      }
+      if (den > 0) c = num / den;
+    }
+    if (c < MIN_STEP) continue;
     let ok = 0;
-    for (const v of d) { const r = v / c; if (Math.abs(r - Math.round(r)) < 0.15) ok++; }
+    for (const v of d) if (near(v, c)) ok++;
     if (ok >= d.length * 0.9) return c;
   }
   return 0;
