@@ -141,6 +141,11 @@
     <details class="block">
       <summary>書き味の計測</summary>
       <dl id="stats" class="stats"></dl>
+      <label><input type="checkbox" id="touchRecord"> 手のひら入力を記録する</label>
+      <p class="muted small">接触の位置・長さ・大きさと判定をこの端末に保存します。書いた線やノートの内容は含めません。自動送信はしません。</p>
+      <p id="touchRecordInfo" class="muted small"></p>
+      <button type="button" id="touchExport">入力記録を書き出す</button>
+      <button type="button" id="touchClear">入力記録を消す</button>
     </details>
 
     <p class="muted small" id="version"></p>

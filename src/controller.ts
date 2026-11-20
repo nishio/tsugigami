@@ -7,6 +7,7 @@ import {
 } from './geom';
 import { type Box, type Stroke, type StrokeKind, newId, noteBounds, strokePad } from './model';
 import { type Ink, LivePenPath, type Renderer, type View, drawMarker, drawPenTail, drawStroke, paintOrder } from './render';
+import { TouchStats } from './touchstats';
 
 export type Tool = 'pen' | 'marker' | 'eraser' | 'lasso';
 export interface Brush { color: string; width: number }
@@ -76,6 +77,7 @@ export class Controller {
   onInk: () => void = () => {};
   /** 計測用 */
   stats = { lastType: '—', pressure: 0, evRate: 0, ptRate: 0, lagMs: 0, palm: 0, hover: false, coalesced: false, predicted: false };
+  readonly touchStats = new TouchStats();
 
   private active: Active | null = null;
   private touches = new Map<number, [number, number]>();
@@ -84,6 +86,7 @@ export class Controller {
   private ignored = new Set<number>();
   private gesture: Gesture | null = null;
   private lastPen = -1e9;
+  private lastPenPoint: [number, number] | null = null;
   private hover: [number, number] | null = null;
   private pred: number[][] | null = null;
   private momentum = 0;
@@ -354,13 +357,24 @@ export class Controller {
     try { this.stage.setPointerCapture(e.pointerId); } catch { /* 合成イベントなど */ }
   }
 
+  private touchPoint(e: PointerEvent) {
+    const [x, y] = this.pt(e);
+    return { id: e.pointerId, t: performance.now(), x, y, width: e.width, height: e.height };
+  }
+
   private onDown(e: PointerEvent): void {
     const t = e.pointerType, now = performance.now();
     this.stopMomentum();
-    if (t === 'pen') { this.lastPen = now; if (this.gesture) this.cancelGesture(now - this.gesture.t0 < PALM_REVERT_MS); }
+    if (t === 'pen') { this.lastPen = now; this.lastPenPoint = this.pt(e); if (this.gesture) this.cancelGesture(now - this.gesture.t0 < PALM_REVERT_MS); }
     // 離したイベントを取りこぼして書きかけが残っていたら、ここで確定させる(固まらないように)
     if (t !== 'touch' && this.active && this.active.id !== e.pointerId) this.finish(this.active);
     if (t === 'touch') {
+      this.touchStats.start(this.touchPoint(e), {
+        viewport: [this.r.W, this.r.H], pen: this.lastPenPoint,
+        penActive: this.active?.k === 'draw', sincePenMs: this.lastPen < 0 ? null : now - this.lastPen,
+        decision: this.active ? 'pen-active' : now - this.lastPen < PALM_MS ? 'pen-recent'
+          : now < this.palmUntil ? 'palm-swarm' : 'navigation-candidate',
+      });
       if (this.active || now - this.lastPen < PALM_MS || now < this.palmUntil) { this.ignored.add(e.pointerId); this.stats.palm++; return; }
       this.touches.set(e.pointerId, this.pt(e));
       this.capture(e);
@@ -409,7 +423,8 @@ export class Controller {
 
   private onMove(e: PointerEvent): void {
     const t = e.pointerType;
-    if (t === 'pen') { this.lastPen = performance.now(); this.stats.pressure = e.pressure; }
+    if (t === 'pen') { this.lastPen = performance.now(); this.lastPenPoint = this.pt(e); this.stats.pressure = e.pressure; }
+    if (t === 'touch') this.touchStats.move(this.touchPoint(e));
     if (this.touches.has(e.pointerId)) { this.touches.set(e.pointerId, this.pt(e)); this.gestureMove(); return; }
     const a = this.active;
     if (!a || e.pointerId !== a.id) {
@@ -483,6 +498,7 @@ export class Controller {
 
   private onUp(e: PointerEvent): void {
     const id = e.pointerId;
+    if (e.pointerType === 'touch') this.touchStats.end(this.touchPoint(e), e.type === 'pointercancel');
     if (e.pointerType === 'pen') this.lastPen = performance.now();
     if (this.ignored.delete(id)) return;
     // iPadOS が手のひらと判断して取り消したタッチ(記録では置いた手の 85/158 がこれで終わる。わざとの操作では 0)
@@ -595,6 +611,7 @@ export class Controller {
     // fit の間は縦にだけ動かす(横にずれない)
     const dx = r.fit ? 0 : n.c[0] - p.c[0], dy = n.c[1] - p.c[1];
     v.x += dx; v.y += dy;
+    this.touchStats.mark(this.touches.keys(), 'navigation');
     if (!r.fit && n.n === 2 && p.d > 0) {
       const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, (v.s * n.d) / p.d)), f = ns / v.s;
       v.x = n.c[0] - (n.c[0] - v.x) * f; v.y = n.c[1] - (n.c[1] - v.y) * f; v.s = ns;
@@ -621,10 +638,11 @@ export class Controller {
   private palm(now: number): void {
     this.stats.palm++;
     this.palmUntil = now + PALM_SWARM_MS;
-    this.cancelGesture(true);
+    this.cancelGesture(true, 'palm-group');
   }
 
-  private cancelGesture(revert = false): void {
+  private cancelGesture(revert = false, reason = 'pen-arrival'): void {
+    this.touchStats.mark(this.touches.keys(), reason);
     for (const id of this.touches.keys()) this.ignored.add(id);
     this.touches.clear();
     if (revert && this.gesture) { Object.assign(this.r.view, this.gesture.v0); this.r.fit = this.gesture.fit0; }

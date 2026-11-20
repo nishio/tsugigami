@@ -8,6 +8,7 @@ import { Doc, type DocSink } from './doc';
 import { type Note, PAGE_W, newNote, noteBounds, pageIndexAt, pageRect } from './model';
 import { Renderer, markerColor } from './render';
 import { type Backup, Store } from './store';
+import type { TouchReport } from './touchstats';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 
@@ -46,6 +47,18 @@ async function main(): Promise<void> {
   const stage = $('#stage');
   const r = new Renderer(stage);
   const c = new Controller(stage, r);
+  const touchKey = 'touch-stats-v1';
+  const savedTouch = await store.getMeta<{ enabled: boolean; report: TouchReport }>(touchKey);
+  c.touchStats.restore(savedTouch?.report); c.touchStats.enabled = savedTouch?.enabled === true;
+  let touchTimer = 0;
+  const flushTouch = () => {
+    clearTimeout(touchTimer);
+    return store.setMeta(touchKey, { enabled: c.touchStats.enabled, report: c.touchStats.snapshot() })
+      .catch(() => toast('入力記録を保存できませんでした', true));
+  };
+  c.touchStats.onChange = () => {
+    clearTimeout(touchTimer); touchTimer = window.setTimeout(() => { void flushTouch(); }, 500);
+  };
   let doc: Doc | null = null;
 
   const fail = (e: unknown) => {
@@ -449,6 +462,10 @@ async function main(): Promise<void> {
   }
 
   function renderStats(): void {
+    ($('#touchRecord') as HTMLInputElement).checked = c.touchStats.enabled;
+    const report = c.touchStats.snapshot();
+    $('#touchRecordInfo').textContent = `記録した接触 ${report.total} 回。直近 ${report.samples.length} 件を保持（最大 512 件）。判定はアプリの判断で、手のひらの正解ラベルではありません。`;
+    ($('#touchExport') as HTMLButtonElement).disabled = report.samples.length === 0;
     const s = c.stats, ok = (b: boolean) => (b ? 'あり' : 'なし');
     const rows: [string, string][] = [
       ['入力', s.lastType],
@@ -467,6 +484,17 @@ async function main(): Promise<void> {
     dl.innerHTML = '';
     for (const [k, v] of rows) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; dl.append(dt, dd); }
   }
+
+  ($('#touchRecord') as HTMLInputElement).onchange = e => {
+    if ((e.target as HTMLInputElement).checked) c.touchStats.enabled = true; else c.touchStats.stop();
+    void flushTouch(); renderStats();
+  };
+  $('#touchClear').onclick = () => { c.touchStats.clear(); void flushTouch(); renderStats(); };
+  $('#touchExport').onclick = () => {
+    const file = new Blob([JSON.stringify(c.touchStats.snapshot(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'tsugigami-touch-stats.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  };
 
   // ---- バックアップ ----
   function renderGh(): void {
@@ -641,7 +669,7 @@ async function main(): Promise<void> {
   for (const n of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(n, e => e.preventDefault());
   document.addEventListener('dblclick', e => e.preventDefault());
   // 裏に回るとき、指やペンの離すイベントが届かないことがあるので状態を捨てる
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { c.reset(); flushView(); auto.soon(); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { c.reset(); flushView(); if (c.touchStats.enabled) void flushTouch(); auto.soon(); } });
   window.addEventListener('online', () => auto.soon());
   window.addEventListener('blur', () => c.reset());
 
