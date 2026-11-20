@@ -8,6 +8,7 @@ import {
 import { type Box, type Stroke, type StrokeKind, newId, noteBounds, strokePad } from './model';
 import { type Ink, LivePenPath, type Renderer, type View, drawMarker, drawPenTail, drawStroke, paintOrder } from './render';
 import { TouchStats } from './touchstats';
+import { drawShape, inferShape, type Shape, shapePoints } from './shapes';
 
 export type Tool = 'pen' | 'marker' | 'eraser' | 'lasso';
 export interface Brush { color: string; width: number }
@@ -44,12 +45,14 @@ const FIT_PINCH = 0.15;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
-  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; path: LivePenPath | null; t: number }
+  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; path: LivePenPath | null; t: number; pencil: boolean; shape: Shape | null }
   | { k: 'erase'; removed: Stroke[]; last: [number, number]; sp: [number, number] }
   | { k: 'lasso'; poly: number[] }
   | { k: 'xform'; mode: 'move' | 'scale' | 'rotate'; start: [number, number]; m0: Mat; pivot: [number, number] });
 
 interface Selection { strokes: Stroke[]; box: Box; m: Mat }
+type Drawing = Extract<Active, { k: 'draw' }>;
+interface ShapeTouch { id: number; start: number; x: number; y: number; movement: number; drawing: Drawing }
 interface GState { c: [number, number]; d: number; n: number }
 interface Gesture {
   t0: number; max: number; prev: GState;
@@ -91,6 +94,10 @@ export class Controller {
   private pred: number[][] | null = null;
   private momentum = 0;
   private inkFrame = 0;
+  private shapeTouch: ShapeTouch | null = null;
+  private shapeTimer = 0;
+  private shapeBlockedUntil = 0;
+  onShape: (kind: Shape['kind'] | null) => void = () => {};
   private rect = { left: 0, top: 0 };
   private strokeStat = { t0: 0, ev: 0, pt: 0, lag: 0, lagN: 0 };
 
@@ -276,12 +283,55 @@ export class Controller {
 
   // ---- 重ね描き(ライブ層とつまみ層) ----
 
+  private cancelShapeTouch(block = false): void {
+    clearTimeout(this.shapeTimer); this.shapeTimer = 0; this.shapeTouch = null;
+    if (block) this.shapeBlockedUntil = performance.now() + PALM_SWARM_MS;
+  }
+
+  private startShapeTouch(e: PointerEvent, drawing: Drawing): void {
+    // ペンより先に置かれた手、複数点、群れの続きは図形タップにしない。
+    if (this.shapeTouch || this.shapeTimer || this.ignored.size || this.touches.size
+      || performance.now() < Math.max(this.palmUntil, this.shapeBlockedUntil)) {
+      this.cancelShapeTouch(true); return;
+    }
+    const [x, y] = this.pt(e);
+    this.shapeTouch = { id: e.pointerId, start: performance.now(), x, y, movement: 0, drawing };
+    this.touchStats.mark([e.pointerId], 'shape-tap-candidate');
+  }
+
+  private moveShapeTouch(e: PointerEvent): void {
+    const t = this.shapeTouch;
+    if (t?.id !== e.pointerId) return;
+    const [x, y] = this.pt(e);
+    t.movement = Math.max(t.movement, Math.hypot(x - t.x, y - t.y));
+  }
+
+  private endShapeTouch(e: PointerEvent): void {
+    if (e.type === 'pointercancel') { this.cancelShapeTouch(true); return; }
+    const t = this.shapeTouch;
+    if (t?.id !== e.pointerId) return;
+    this.moveShapeTouch(e); this.shapeTouch = null;
+    const elapsed = performance.now() - t.start, a = t.drawing;
+    // 旧実録の短い手の触れ(9〜33ms)と、移動・長押しは採らない。
+    // 40ms は初期の保守的な値。単独指タップの実機での誤爆率は #7 の記録と合わせて確かめる。
+    if (elapsed < 40 || elapsed > 250 || t.movement >= PAN_SLOP_PX) return;
+    const shape = a.shape ? null : inferShape(a.ink.pts);
+    if (!a.shape && !shape) return;
+    // 続けて届く手の群れや cancel を待つ。Pencil を離した後には発動させない。
+    this.shapeTimer = window.setTimeout(() => {
+      this.shapeTimer = 0;
+      if (this.active !== a || this.ignored.size || this.touches.size || performance.now() < this.palmUntil) return;
+      a.shape = shape; a.path = new LivePenPath();
+      this.overlay(); this.onShape(shape?.kind ?? null);
+    }, PALM_SWARM_MS);
+  }
+
   /** 複数の move を 1 表示フレームにまとめる。ペン先(wet)はイベントごとに更新する。 */
   private requestPenInk(): void {
     if (!this.inkFrame) this.inkFrame = requestAnimationFrame(() => {
       this.inkFrame = 0;
       const a = this.active, r = this.r;
-      if (a?.k !== 'draw' || !a.path) return;
+      if (a?.k !== 'draw' || !a.path || a.shape) return;
       r.clear(r.lctx); r.setWorld(r.lctx);
       a.path.draw(r.lctx, a.ink);
       this.renderWet(); // フレーム待ちの間に wet に描いた区間を消し、二重描画を残さない
@@ -299,7 +349,7 @@ export class Controller {
     r.clear(r.lctx);
     if (a?.k === 'draw') {
       r.setWorld(r.lctx);
-      if (a.kind === 'marker') drawMarker(r.lctx, a.ink); else a.path!.draw(r.lctx, a.ink);
+      if (a.kind === 'marker') drawMarker(r.lctx, a.ink); else if (!a.shape) a.path!.draw(r.lctx, a.ink);
     } else if (this.sel) {
       r.setWorld(r.lctx, this.sel.m);
       for (const s of paintOrder([...this.sel.strokes])) drawStroke(r.lctx, s);
@@ -316,7 +366,8 @@ export class Controller {
     r.clear(ctx);
     if (a?.k === 'draw' && a.kind === 'pen') {
       r.setWorld(ctx);
-      drawPenTail(ctx, a.ink, this.pred ?? undefined, a.path!.pointCount);
+      if (a.shape) drawShape(ctx, a.shape, a.ink);
+      else drawPenTail(ctx, a.ink, this.pred ?? undefined, a.path!.pointCount);
     }
     if (a?.k === 'lasso' && a.poly.length >= 4) {
       r.setWorld(ctx);
@@ -375,6 +426,7 @@ export class Controller {
         decision: this.active ? 'pen-active' : now - this.lastPen < PALM_MS ? 'pen-recent'
           : now < this.palmUntil ? 'palm-swarm' : 'navigation-candidate',
       });
+      if (this.active?.k === 'draw' && this.active.kind === 'pen' && this.active.pencil) this.startShapeTouch(e, this.active);
       if (this.active || now - this.lastPen < PALM_MS || now < this.palmUntil) { this.ignored.add(e.pointerId); this.stats.palm++; return; }
       this.touches.set(e.pointerId, this.pt(e));
       this.capture(e);
@@ -403,7 +455,7 @@ export class Controller {
     switch (this.tool) {
       case 'pen': case 'marker': {
         const b = this.tool === 'pen' ? this.pen : this.marker;
-        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, path: this.tool === 'pen' ? new LivePenPath() : null, t: -Infinity };
+        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, path: this.tool === 'pen' ? new LivePenPath() : null, t: -Infinity, pencil: t === 'pen', shape: null };
         this.pred = null;
         this.r.hold(true);
         this.overlay();
@@ -424,7 +476,7 @@ export class Controller {
   private onMove(e: PointerEvent): void {
     const t = e.pointerType;
     if (t === 'pen') { this.lastPen = performance.now(); this.lastPenPoint = this.pt(e); this.stats.pressure = e.pressure; }
-    if (t === 'touch') this.touchStats.move(this.touchPoint(e));
+    if (t === 'touch') { this.touchStats.move(this.touchPoint(e)); this.moveShapeTouch(e); }
     if (this.touches.has(e.pointerId)) { this.touches.set(e.pointerId, this.pt(e)); this.gestureMove(); return; }
     const a = this.active;
     if (!a || e.pointerId !== a.id) {
@@ -455,13 +507,13 @@ export class Controller {
           P.push(x, y, pres(ev));
         }
         this.pred = null;
-        if (a.kind === 'pen' && e.getPredictedEvents) {
+        if (a.kind === 'pen' && !a.shape && e.getPredictedEvents) {
           const pe = e.getPredictedEvents();
           if (pe.length) { this.stats.predicted = true; this.pred = pe.map(ev => r.toWorld(...this.pt(ev))); }
         }
         const ctx = r.lctx;
         if (a.kind === 'marker') { r.clear(ctx); r.setWorld(ctx); drawMarker(ctx, a.ink); }
-        else this.requestPenInk();
+        else if (!a.shape) this.requestPenInk();
         this.renderWet();
         break;
       }
@@ -498,7 +550,10 @@ export class Controller {
 
   private onUp(e: PointerEvent): void {
     const id = e.pointerId;
-    if (e.pointerType === 'touch') this.touchStats.end(this.touchPoint(e), e.type === 'pointercancel');
+    if (e.pointerType === 'touch') {
+      this.endShapeTouch(e);
+      this.touchStats.end(this.touchPoint(e), e.type === 'pointercancel');
+    }
     if (e.pointerType === 'pen') this.lastPen = performance.now();
     if (this.ignored.delete(id)) return;
     // iPadOS が手のひらと判断して取り消したタッチ(記録では置いた手の 85/158 がこれで終わる。わざとの操作では 0)
@@ -516,6 +571,7 @@ export class Controller {
   /** 書く・消す・投げ縄・変形を終える */
   private finish(a: Active): void {
     this.cancelPenInk();
+    this.cancelShapeTouch();
     const doc = a.doc;
     this.active = null;
     this.pred = null;
@@ -525,7 +581,7 @@ export class Controller {
     if (st.lagN) this.stats.lagMs = st.lag / st.lagN;
     switch (a.k) {
       case 'draw': {
-        const pts = Float32Array.from(a.ink.pts);
+        const pts = a.shape ? shapePoints(a.shape, a.ink.pts) : Float32Array.from(a.ink.pts);
         const s: Stroke = {
           id: newId(), noteId: doc.note.id, kind: a.kind, color: a.ink.color, width: a.ink.width, pts,
           b: bboxOf(pts, 3, strokePad(a.kind, a.ink.width)), z: doc.nextZ(),

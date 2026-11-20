@@ -47,6 +47,7 @@ async function main(): Promise<void> {
   const stage = $('#stage');
   const r = new Renderer(stage);
   const c = new Controller(stage, r);
+  c.onShape = kind => toast(kind === 'line' ? '直線' : kind === 'circle' ? '円' : '手書き');
   const touchKey = 'touch-stats-v1';
   const savedTouch = await store.getMeta<{ enabled: boolean; report: TouchReport }>(touchKey);
   c.touchStats.restore(savedTouch?.report); c.touchStats.enabled = savedTouch?.enabled === true;
