@@ -56,16 +56,37 @@ export function pointInPoly(x: number, y: number, poly: ArrayLike<number>): bool
   return inside;
 }
 
-/** 投げ縄で選ばれるか: ストロークの点の半分以上が内側 */
+/** 2 線分が交差するか、距離が r 以下か(端点・平行・長さ 0 も含む) */
+function segmentsTouch(ax: number, ay: number, bx: number, by: number,
+  cx: number, cy: number, dx: number, dy: number, r2: number): boolean {
+  const abC = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const abD = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax);
+  const cdA = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx);
+  const cdB = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx);
+  if (abC * abD < 0 && cdA * cdB < 0) return true;
+  return segDist2(ax, ay, bx, by, cx, cy) <= r2
+    || segDist2(ax, ay, bx, by, dx, dy) <= r2
+    || segDist2(cx, cy, dx, dy, ax, ay) <= r2
+    || segDist2(cx, cy, dx, dy, bx, by) <= r2;
+}
+
+/** 投げ縄の内側または境界に、太さを含むストロークの一部でも触れれば選ぶ */
 export function lassoHit(s: Stroke, poly: ArrayLike<number>, polyBox: Box): boolean {
-  if (!overlaps(s.b, polyBox)) return false;
-  const P = s.pts, n = P.length / 3, step = Math.max(1, Math.floor(n / 64));
-  let inside = 0, total = 0;
-  for (let i = 0; i < n; i += step) {
-    total++;
-    if (pointInPoly(P[i * 3], P[i * 3 + 1], poly)) inside++;
+  const P = s.pts;
+  if (P.length < 3 || poly.length < 6 || !overlaps(s.b, polyBox)) return false;
+  if (pointInPoly(P[0], P[1], poly)) return true;
+  const r = strokePad(s.kind, s.width), r2 = r * r;
+  // 点だけのストロークも長さ 0 の線分として調べる。点列を間引くと短い接触を落とす。
+  for (let i = Math.min(3, P.length - 3); i < P.length; i += 3) {
+    const a = Math.max(0, i - 3), ax = P[a], ay = P[a + 1], bx = P[i], by = P[i + 1];
+    for (let j = 0, k = poly.length - 2; j < poly.length; k = j, j += 2) {
+      const cx = poly[k], cy = poly[k + 1], dx = poly[j], dy = poly[j + 1];
+      if (Math.max(ax, bx) + r < Math.min(cx, dx) || Math.min(ax, bx) - r > Math.max(cx, dx)
+        || Math.max(ay, by) + r < Math.min(cy, dy) || Math.min(ay, by) - r > Math.max(cy, dy)) continue;
+      if (segmentsTouch(ax, ay, bx, by, cx, cy, dx, dy, r2)) return true;
+    }
   }
-  return inside * 2 >= total;
+  return false;
 }
 
 /** アフィン変換 [a, b, c, d, e, f]: x' = a x + c y + e, y' = b x + d y + f */

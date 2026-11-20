@@ -2,7 +2,7 @@
 title: Index
 type: meta
 created: 2026-10-27
-updated: 2026-11-14
+updated: 2026-11-21
 ---
 
 # tsugigami 開発 wiki
@@ -25,6 +25,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 
 ## decisions/
 
+- [投げ縄は少しでも触れれば選択する](decisions/2026-11-21_投げ縄は少しでも触れれば選択.md) — issue #5。線の太さ・線分の途中・境界への接触を含める。点の割合による判定から変更
 - [PWA として GitHub Pages に置く](decisions/2026-10-27_PWAとGitHub_Pages.md) — 次の起動で新版に切り替わる Service Worker
 - [UI フレームワークを使わない](decisions/2026-10-27_フレームワークを使わない.md) — 描画のホットパスに何も挟まない
 - [線 1 本ずつ IndexedDB へ保存する](decisions/2026-10-27_線ごとにIndexedDBへ保存.md) — 差分保存で書いたものを失わない
@@ -74,6 +75,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 
 ## raw/
 
+- [2026-11-21 issue #5 投げ縄は少しでも触れれば選択](../raw/2026-11-21_issue5_投げ縄は少しでも触れれば選択.md)
 - [2026-10-27 Notability 置き換えの要件会話](../raw/2026-10-27_Notability置き換えの要件会話.md)
 - [2026-10-27 実機での最初の感想と issue #1](../raw/2026-10-27_実機での最初の感想とissue1.md)(見本の画像 [png](../raw/2026-10-27_issue1_テイスト.png))
 - [2026-10-27 消えないと信じられること](../raw/2026-10-27_消えないと信じられること.md)
