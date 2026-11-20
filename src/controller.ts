@@ -6,7 +6,7 @@ import {
   transformStroke, translate, unionAll,
 } from './geom';
 import { type Box, type Stroke, type StrokeKind, newId, noteBounds, strokePad } from './model';
-import { type Ink, type Renderer, type View, drawMarker, drawPenSegments, drawPenTail, drawStroke, paintOrder } from './render';
+import { type Ink, LivePenPath, type Renderer, type View, drawMarker, drawPenTail, drawStroke, paintOrder } from './render';
 
 export type Tool = 'pen' | 'marker' | 'eraser' | 'lasso';
 export interface Brush { color: string; width: number }
@@ -43,7 +43,7 @@ const FIT_PINCH = 0.15;
 
 /** 書き始めたときの文書を持つ(途中でノートが切り替わっても、書いた線は元のノートに入る) */
 type Active = { id: number; doc: Doc } & (
-  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; drawn: number; t: number }
+  | { k: 'draw'; kind: StrokeKind; ink: Ink & { pts: number[] }; path: LivePenPath | null; t: number }
   | { k: 'erase'; removed: Stroke[]; last: [number, number]; sp: [number, number] }
   | { k: 'lasso'; poly: number[] }
   | { k: 'xform'; mode: 'move' | 'scale' | 'rotate'; start: [number, number]; m0: Mat; pivot: [number, number] });
@@ -87,6 +87,7 @@ export class Controller {
   private hover: [number, number] | null = null;
   private pred: number[][] | null = null;
   private momentum = 0;
+  private inkFrame = 0;
   private rect = { left: 0, top: 0 };
   private strokeStat = { t0: 0, ev: 0, pt: 0, lag: 0, lagN: 0 };
 
@@ -272,12 +273,30 @@ export class Controller {
 
   // ---- 重ね描き(ライブ層とつまみ層) ----
 
+  /** 複数の move を 1 表示フレームにまとめる。ペン先(wet)はイベントごとに更新する。 */
+  private requestPenInk(): void {
+    if (!this.inkFrame) this.inkFrame = requestAnimationFrame(() => {
+      this.inkFrame = 0;
+      const a = this.active, r = this.r;
+      if (a?.k !== 'draw' || !a.path) return;
+      r.clear(r.lctx); r.setWorld(r.lctx);
+      a.path.draw(r.lctx, a.ink);
+      this.renderWet(); // フレーム待ちの間に wet に描いた区間を消し、二重描画を残さない
+    });
+  }
+
+  private cancelPenInk(): void {
+    if (this.inkFrame) cancelAnimationFrame(this.inkFrame);
+    this.inkFrame = 0;
+  }
+
   private overlay(): void {
+    this.cancelPenInk();
     const r = this.r, a = this.active;
     r.clear(r.lctx);
     if (a?.k === 'draw') {
       r.setWorld(r.lctx);
-      if (a.kind === 'marker') drawMarker(r.lctx, a.ink); else drawPenSegments(r.lctx, a.ink);
+      if (a.kind === 'marker') drawMarker(r.lctx, a.ink); else a.path!.draw(r.lctx, a.ink);
     } else if (this.sel) {
       r.setWorld(r.lctx, this.sel.m);
       for (const s of paintOrder([...this.sel.strokes])) drawStroke(r.lctx, s);
@@ -294,7 +313,7 @@ export class Controller {
     r.clear(ctx);
     if (a?.k === 'draw' && a.kind === 'pen') {
       r.setWorld(ctx);
-      drawPenTail(ctx, a.ink, this.pred ?? undefined);
+      drawPenTail(ctx, a.ink, this.pred ?? undefined, a.path!.pointCount);
     }
     if (a?.k === 'lasso' && a.poly.length >= 4) {
       r.setWorld(ctx);
@@ -370,7 +389,7 @@ export class Controller {
     switch (this.tool) {
       case 'pen': case 'marker': {
         const b = this.tool === 'pen' ? this.pen : this.marker;
-        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, drawn: 1, t: -Infinity };
+        this.active = { k: 'draw', id: e.pointerId, doc, kind: this.tool, ink: { pts: [x, y, pres(e)], width: b.width, color: b.color }, path: this.tool === 'pen' ? new LivePenPath() : null, t: -Infinity };
         this.pred = null;
         this.r.hold(true);
         this.overlay();
@@ -425,9 +444,9 @@ export class Controller {
           const pe = e.getPredictedEvents();
           if (pe.length) { this.stats.predicted = true; this.pred = pe.map(ev => r.toWorld(...this.pt(ev))); }
         }
-        const ctx = r.lctx, n = P.length / 3;
+        const ctx = r.lctx;
         if (a.kind === 'marker') { r.clear(ctx); r.setWorld(ctx); drawMarker(ctx, a.ink); }
-        else if (n > a.drawn) { r.setWorld(ctx); drawPenSegments(ctx, a.ink, a.drawn); a.drawn = n; }
+        else this.requestPenInk();
         this.renderWet();
         break;
       }
@@ -480,6 +499,7 @@ export class Controller {
 
   /** 書く・消す・投げ縄・変形を終える */
   private finish(a: Active): void {
+    this.cancelPenInk();
     const doc = a.doc;
     this.active = null;
     this.pred = null;

@@ -24,42 +24,39 @@ export interface Ink { pts: ArrayLike<number>; width: number; color: string }
 
 // ---- ストロークの描き方(タイルとライブ描画で共用) ----
 
-/** 太さの量子化。同じ太さが続く区間を 1 つのパスにまとめて描画命令を減らす */
-const qw = (w: number) => Math.round(w * 8) / 8;
-
 /**
- * ペンを描く。点 i から点 i+1 への区間は「中点から中点への二次曲線」。
- * from 以降の区間だけ描く(ライブ描画の差分用)。最後の中点からペン先までの残りは tail で描く。
+ * 書いているペンの、最後の中点までのパス。追加された点だけを曲線へ変換する。
+ * 描くときはキャンバスを消して、このパス全体を 1 回 stroke する。
+ * 区間ごとの足し描きでは丸い端の半透明画素が重なり、イベント数で線の縁が濃くなる(issue #2)。
  */
-export function drawPenSegments(ctx: CanvasRenderingContext2D, s: Ink, from = 1, clip?: Box): void {
-  const P = s.pts, n = P.length / 3;
-  ctx.strokeStyle = s.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  let open = false, cw = -1;
-  for (let i = Math.max(1, from); i < n; i++) {
-    const j = i * 3, x1 = P[j - 3], y1 = P[j - 2], x2 = P[j], y2 = P[j + 1];
-    if (clip) {
-      const m = s.width * 2;
-      if (Math.max(x1, x2) < clip[0] - m || Math.min(x1, x2) > clip[2] + m || Math.max(y1, y2) < clip[1] - m || Math.min(y1, y2) > clip[3] + m) {
-        if (open) { ctx.stroke(); open = false; }
-        continue;
-      }
+export class LivePenPath {
+  private path = new Path2D();
+  private count = 0;
+
+  get pointCount(): number { return this.count; }
+
+  append(P: ArrayLike<number>): Path2D {
+    const n = P.length / 3;
+    if (!this.count && n) this.path.moveTo(P[0], P[1]);
+    for (let i = Math.max(1, this.count); i < n; i++) {
+      const j = i * 3, mx = (P[j - 3] + P[j]) / 2, my = (P[j - 2] + P[j + 1]) / 2;
+      if (i === 1) this.path.lineTo(mx, my);
+      else this.path.quadraticCurveTo(P[j - 3], P[j - 2], mx, my);
     }
-    const w = qw(penWidth(s.width, (P[j - 1] + P[j + 2]) / 2));
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-    if (!open || w !== cw) {
-      if (open) ctx.stroke();
-      ctx.lineWidth = cw = w;
-      ctx.beginPath();
-      if (i === 1) ctx.moveTo(x1, y1); else ctx.moveTo((P[j - 6] + x1) / 2, (P[j - 5] + y1) / 2);
-      open = true;
-    }
-    if (i === 1) ctx.lineTo(mx, my); else ctx.quadraticCurveTo(x1, y1, mx, my);
+    this.count = n;
+    return this.path;
   }
-  if (open) ctx.stroke();
+
+  draw(ctx: CanvasRenderingContext2D, s: Ink): void {
+    ctx.strokeStyle = s.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // 筆圧なし。確定した線と同じ太さを使い、1/8 刻みには丸めない。
+    ctx.lineWidth = penWidth(s.width, 1);
+    ctx.stroke(this.append(s.pts));
+  }
 }
 
-/** 最後の中点からペン先まで。pred は予測点(ライブ描画のみ) */
-export function drawPenTail(ctx: CanvasRenderingContext2D, s: Ink, pred?: number[][]): void {
+/** 描画済みの中点からペン先まで。次の表示フレームを待っている区間と予測点も含む。 */
+export function drawPenTail(ctx: CanvasRenderingContext2D, s: Ink, pred?: number[][], drawn = s.pts.length / 3): void {
   const P = s.pts, n = P.length / 3, j = (n - 1) * 3;
   ctx.strokeStyle = ctx.fillStyle = s.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const w = penWidth(s.width, P[j + 2]);
@@ -69,7 +66,14 @@ export function drawPenTail(ctx: CanvasRenderingContext2D, s: Ink, pred?: number
   }
   ctx.lineWidth = w;
   ctx.beginPath();
-  if (n === 1) ctx.moveTo(P[0], P[1]); else ctx.moveTo((P[j - 3] + P[j]) / 2, (P[j - 2] + P[j + 1]) / 2);
+  const from = Math.max(1, Math.min(drawn, n)), start = (from - 1) * 3;
+  if (from === 1) ctx.moveTo(P[0], P[1]);
+  else ctx.moveTo((P[start - 3] + P[start]) / 2, (P[start - 2] + P[start + 1]) / 2);
+  for (let i = from; i < n; i++) {
+    const k = i * 3, mx = (P[k - 3] + P[k]) / 2, my = (P[k - 2] + P[k + 1]) / 2;
+    if (i === 1) ctx.lineTo(mx, my);
+    else ctx.quadraticCurveTo(P[k - 3], P[k - 2], mx, my);
+  }
   ctx.lineTo(P[j], P[j + 1]);
   if (pred) for (const q of pred) ctx.lineTo(q[0], q[1]);
   ctx.stroke();
@@ -92,10 +96,10 @@ export function drawMarker(ctx: CanvasRenderingContext2D, s: Ink): void {
 /**
  * 書き終わった線のパス。点の列は変わらないので、ストロークごとに 1 回だけ作って使い回す。
  * 太さが一定なので 1 本を 1 つのパスで描く。ペンは書いている最中と同じ「中点から中点への二次曲線」
- * (+ 最後の中点からペン先までの直線)にして、確定した瞬間に線の形が変わらないようにする。
+ * (+ 最後の中点からペン先までの直線)にする。
  * (筆圧で太さを変えていた頃は、輪郭の多角形を塗っていた。git 履歴と wiki 参照)
  * 点列は、書いたときの画素の格子に揃った座標を平滑化してから使う(smooth.ts)。書いている最中は平滑化しないが、
- * 動くのは書いたときの 1 デバイス画素ほどなので、確定した瞬間の変化は見えない。
+ * 確定した瞬間に動いて見えるかは実機での確認が必要。
  */
 interface StrokePaths { line: Path2D; lw: number }
 const pathCache = new WeakMap<Stroke, StrokePaths>();
@@ -103,17 +107,14 @@ const pathCache = new WeakMap<Stroke, StrokePaths>();
 function strokePaths(s: Stroke): StrokePaths {
   let c = pathCache.get(s);
   if (c) return c;
-  const P = renderPts(s.pts), n = P.length / 3, line = new Path2D();
-  line.moveTo(P[0], P[1]);
-  if (n === 1) line.lineTo(P[0] + 0.01, P[1]);
-  else if (s.kind === 'marker') for (let j = 3; j < P.length; j += 3) line.lineTo(P[j], P[j + 1]);
-  else {
-    for (let i = 1; i < n; i++) {
-      const j = i * 3, mx = (P[j - 3] + P[j]) / 2, my = (P[j - 2] + P[j + 1]) / 2;
-      if (i === 1) line.lineTo(mx, my); else line.quadraticCurveTo(P[j - 3], P[j - 2], mx, my);
-    }
-    line.lineTo(P[(n - 1) * 3], P[(n - 1) * 3 + 1]);
+  const P = renderPts(s.pts), n = P.length / 3;
+  const line = s.kind === 'pen' ? new LivePenPath().append(P) : new Path2D();
+  if (s.kind === 'marker') {
+    line.moveTo(P[0], P[1]);
+    for (let j = 3; j < P.length; j += 3) line.lineTo(P[j], P[j + 1]);
   }
+  if (n === 1) line.lineTo(P[0] + 0.01, P[1]);
+  else if (s.kind === 'pen') line.lineTo(P[(n - 1) * 3], P[(n - 1) * 3 + 1]);
   c = { line, lw: s.kind === 'marker' ? s.width : penWidth(s.width, 1) };
   pathCache.set(s, c);
   return c;

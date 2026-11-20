@@ -47,6 +47,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 
 ## findings/
 
+- [イベントごとの足し描きで線の縁が濃くなる](findings/イベントごとの足し描きで線の縁が濃くなる.md) — issue #2。同じ点列でもイベントの分割で縁が濃くなる原因を再現し、1 フレーム 1 パスで修正。iPad 実機は未確認
 - [hidden 属性は display の指定に負ける](findings/hidden属性とdisplay指定.md) — 自動テストで確認
 - [claude.ai の Artifact では試作しかできない](findings/Artifactでは試作しかできない.md) — 文書・仕様による
 - [合成した PointerEvent でペン入力をテストする](findings/合成PointerEventでのテスト.md) — 自動テストで確認
@@ -75,6 +76,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 
 ## raw/
 
+- [2026-11-21 合成線のイベント分割と描画品質の計測値](../raw/2026-11-21_合成線のイベント分割と描画品質.json)
 - [2026-11-21 issue #5 投げ縄は少しでも触れれば選択](../raw/2026-11-21_issue5_投げ縄は少しでも触れれば選択.md)
 - [2026-10-27 Notability 置き換えの要件会話](../raw/2026-10-27_Notability置き換えの要件会話.md)
 - [2026-10-27 実機での最初の感想と issue #1](../raw/2026-10-27_実機での最初の感想とissue1.md)(見本の画像 [png](../raw/2026-10-27_issue1_テイスト.png))

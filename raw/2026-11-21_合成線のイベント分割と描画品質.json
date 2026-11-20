@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-21",
+  "baseline_commit": "59cbdc4",
+  "input": "合成した 1201 点の直線。1 回の合体イベントと、表示フレームをまたぐ 1200 回の move を比較",
+  "baseline_measurement": "live 層の alpha。修正後の回帰テストでは live + wet の合成を比較",
+  "baseline": {
+    "chromium": { "changed_pixels": 1895, "max_alpha_difference": 98, "one_event_alpha_sum": 1379197, "split_events_alpha_sum": 1492242 },
+    "webkit": { "changed_pixels": 1895, "max_alpha_difference": 98, "one_event_alpha_sum": 1379197, "split_events_alpha_sum": 1492512 }
+  },
+  "fixed_composite": {
+    "chromium": { "straight_changed_pixels": 0, "curve_changed_pixels": 0, "corner_changed_pixels": 0, "max_alpha_difference": 0 },
+    "webkit": { "straight_changed_pixels": 0, "curve_changed_pixels": 0, "corner_changed_pixels": 0, "max_alpha_difference": 0 }
+  },
+  "performance": {
+    "input": "10001 点の合成線。50 move ごとに requestAnimationFrame を待つ。2 workers",
+    "chromium": { "stroke_calls": 201, "move_ms_p95": 0, "stroke_call_ms_p95": 0.10000014305114746, "frame_wait_ms_p95": 17.299999952316284 },
+    "webkit": { "stroke_calls": 201, "move_ms_p95": 0, "stroke_call_ms_p95": 1, "frame_wait_ms_p95": 27 },
+    "limits": "Windows のヘッドレスブラウザ。0ms はタイマーの分解能未満を含む。stroke 呼び出し時間は GPU の完了や画面への表示遅延ではない。iPad 実機は未計測"
+  },
+  "checks": { "unit_tests_passed": 76, "browser_tests_passed": 38, "typecheck_and_build": "passed" }
+}
