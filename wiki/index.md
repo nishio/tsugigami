@@ -47,6 +47,7 @@ LLM が書いて育てる開発 wiki。運用ルールは [CLAUDE.md](../CLAUDE.
 
 ## findings/
 
+- [横の触れと指の本数変更でスクロールの遊びが失われる](findings/横の触れと指の本数変更でスクロールの遊びが失われる.md) — issue #3。縦に 2px ずれる条件を再現し、fit の方向と指の組ごとに遊びを取り直す
 - [イベントごとの足し描きで線の縁が濃くなる](findings/イベントごとの足し描きで線の縁が濃くなる.md) — issue #2。同じ点列でもイベントの分割で縁が濃くなる原因を再現し、1 フレーム 1 パスで修正。iPad 実機は未確認
 - [hidden 属性は display の指定に負ける](findings/hidden属性とdisplay指定.md) — 自動テストで確認
 - [claude.ai の Artifact では試作しかできない](findings/Artifactでは試作しかできない.md) — 文書・仕様による

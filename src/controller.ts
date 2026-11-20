@@ -568,19 +568,26 @@ export class Controller {
     this.gesture.max = Math.max(this.gesture.max, this.touches.size);
     this.gesture.prev = this.gState();
     this.gesture.d0 = this.gesture.prev.d;
-    if (this.gesture.rest) this.gesture.rest = this.gesture.prev;
+    // 本数が変わった後は、新しい指の組で動き出しを確かめ直す。
+    this.gesture.rest = this.gesture.prev;
+    this.gesture.vx = this.gesture.vy = 0;
+    this.gesture.lastT = performance.now();
   }
 
   private gestureMove(): void {
     const g = this.gesture;
     if (!g) return;
     const n = this.gState(), p = g.prev, v = this.r.view, now = performance.now();
-    if (n.n !== p.n) { g.prev = n; g.d0 = n.d; if (g.rest) g.rest = n; return; }
+    if (n.n !== p.n) { this.gestureReset(); return; }
     if (g.rest) {
       // 出発点から PAN_SLOP_PX 離れるまでは揺れとみなして捨てる。動き出すときは今の位置を基準にする(溜まった分だけ跳ばない)
-      const o = g.rest, far = Math.hypot(n.c[0] - o.c[0], n.c[1] - o.c[1]) + Math.abs(n.d - o.d);
+      const o = g.rest;
+      // fit では横に動かせないので、横方向の触れで縦スクロールの遊びを解除しない。
+      const far = this.r.fit ? Math.abs(n.c[1] - o.c[1])
+        : Math.hypot(n.c[0] - o.c[0], n.c[1] - o.c[1]) + Math.abs(n.d - o.d);
+      const pinch = n.n === 2 && g.d0 > 0 && Math.abs(Math.log(n.d / g.d0)) >= FIT_PINCH;
       g.prev = n; g.lastT = now;
-      if (far >= PAN_SLOP_PX) g.rest = null;
+      if (far >= PAN_SLOP_PX || pinch) g.rest = null;
       return;
     }
     const r = this.r;
@@ -603,7 +610,7 @@ export class Controller {
   private gestureLift(): void {
     const g = this.gesture;
     if (!g) return;
-    if (this.touches.size) { g.prev = this.gState(); return; }
+    if (this.touches.size) { this.gestureReset(); return; }
     this.gesture = null;
     const now = performance.now();
     if (g.max === 1 && now - g.lastT < 60 && Math.hypot(g.vx, g.vy) > 0.25) this.startMomentum(g.vx, g.vy);
