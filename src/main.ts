@@ -9,6 +9,7 @@ import { type Note, PAGE_W, newNote, noteBounds, pageIndexAt, pageRect } from '.
 import { Renderer, markerColor } from './render';
 import { type Backup, Store } from './store';
 import type { TouchReport } from './touchstats';
+import { showUpdates } from './updates';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
     clearTimeout(touchTimer); touchTimer = window.setTimeout(() => { void flushTouch(); }, 500);
   };
   let doc: Doc | null = null;
+  let checkVersion = () => Promise.resolve();
 
   const fail = (e: unknown) => {
     console.error(e);
@@ -381,7 +383,7 @@ async function main(): Promise<void> {
 
   // ---- ノート一覧 ----
   const drawer = $('#drawer'), scrim = $('#scrim');
-  const openDrawer = async () => { c.clearSelection(); await renderDrawer(); drawer.hidden = scrim.hidden = false; };
+  const openDrawer = async () => { c.clearSelection(); await renderDrawer(); drawer.hidden = scrim.hidden = false; void checkVersion(); };
   const closeDrawer = () => { drawer.hidden = scrim.hidden = true; };
   $('#menuBtn').onclick = openDrawer;
   scrim.onclick = closeDrawer;
@@ -679,7 +681,6 @@ async function main(): Promise<void> {
   onResize();
 
   // ---- 起動 ----
-  $('#version').textContent = `tsugigami ${__BUILD__}${lab ? ' lab' : ''}`;
   const lastId = await store.getMeta<string>('lastNote');
   const notes = await store.listNotes();
   const first = notes.find(n => n.id === lastId && !n.trashed) ?? notes.filter(n => !n.trashed).sort((a, b) => b.updated - a.updated)[0];
@@ -693,9 +694,20 @@ async function main(): Promise<void> {
   }
   auto.run().catch(() => {}); // 前回送れなかった分があれば送る(変わっていなければ読むだけ)
 
-  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(e => console.warn('service worker', e));
-  }
+  const registration = import.meta.env.PROD && 'serviceWorker' in navigator
+    ? navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js', { updateViaCache: 'none' })
+      .catch(e => { console.warn('service worker', e); return null; })
+    : Promise.resolve(null);
+  checkVersion = showUpdates({
+    build: __BUILD__, base: import.meta.env.BASE_URL, lab, registration,
+    save: async () => {
+      c.reset(); flushView();
+      if (c.touchStats.enabled) void flushTouch();
+      await store.flush();
+      if (store.status.pending || store.status.error) throw new Error('保存を完了できません。更新せずに待機しています');
+    },
+    error: message => toast(message, true),
+  }).check;
   // テストと lab から状態を覗く・動かすための口
   const app = { get doc() { return doc; }, r, c, store, auto, openNote, createNote };
   (window as unknown as { tsugigami: unknown }).tsugigami = app;

@@ -148,9 +148,21 @@
       <button type="button" id="touchClear">入力記録を消す</button>
     </details>
 
-    <p class="muted small" id="version"></p>
+    <section class="block" aria-label="アプリの更新">
+      <h3>アプリの更新</h3>
+      <p class="muted small" id="version"></p>
+      <p class="muted small" id="versionStatus" role="status"></p>
+      <div class="row">
+        <button type="button" id="versionCheck">最新版を確認</button>
+        <button type="button" id="versionUpdate" hidden>最新版に更新</button>
+      </div>
+    </section>
   </aside>
 
+  <div id="updateWait" hidden>
+    <p role="status">保存して最新版を開いています…</p>
+    <button type="button" id="updateCancel">更新せずに戻る</button>
+  </div>
   <div id="saveWarn" role="alert" hidden></div>
   <div id="labOffer" role="dialog" aria-label="自動バックアップの設定" hidden>
     <p></p>

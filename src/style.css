@@ -128,6 +128,7 @@ button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accen
 }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .drawer-head h2 { margin: 0; font-size: 18px; }
+#updateWait { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bar); touch-action: none; }
 .note-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .note-list li { display: flex; align-items: center; gap: 4px; border-radius: 10px; }
 .note-list li.current { background: var(--accent-soft); }
